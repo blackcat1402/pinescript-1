@@ -1,0 +1,5 @@
+// new_crb returns true if the current bar is red, that is, the current open
+// price is higher than the current close price. This signals a local downward
+// movement. Here crb means current red bar.
+new_crb() =>
+    open > close

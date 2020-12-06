@@ -27,14 +27,14 @@ new_hps(src, reb) =>
 // new_hpb returns a high price indicator for the current bar, based on the
 // recent bars and their associated price change. Here hpb means high price
 // bar.
-new_hpb() =>
+new_hpb(src) =>
     // Define the n recent bars to look back. Here reb means recent bars.
     reb = 100
     // Define the price change to consider in the past. Here prh means price
     // change.
     prh = 0.001
 
-    (new_per(close, new_hps(close, reb)) - 100) > prh ? na : true
+    (new_per(src, new_hps(src, reb)) - 100) > prh ? na : true
 
 // new_hpi returns a high price indicator for two isolated high price
 // indications in a row as calculated by new_hpb. Here hpi means high price
@@ -42,8 +42,8 @@ new_hpb() =>
 //
 //     ... L H H L ...
 //
-new_hpi() =>
-    not new_hpb()[0] and new_hpb()[1] and new_hpb()[2] and not new_hpb()[3]
+new_hpi(src) =>
+    not new_hpb(src)[0] and new_hpb(src)[1] and new_hpb(src)[2] and not new_hpb(src)[3]
 
 
-plotshape(new_hpi(), text="HPI",  title="Indicator", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)
+plotshape(new_hpi(close), text="HPI", title="Indicator", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)

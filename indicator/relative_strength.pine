@@ -1,0 +1,43 @@
+//@version=4
+
+
+
+study(title="Relative Strength", shorttitle="Relative Strength", overlay=true)
+
+
+
+rsl = input(14, minval=1, title="RSI Length")
+
+
+
+// new_crb returns true if the current bar is red, that is, the current open
+// price is higher than the current close price. This signals a local downward
+// movement. Here crb means current red bar.
+new_crb() =>
+    open > close
+
+// new_hpb returns the relative strength indicator for the current bar, based on
+// the running moving average. Here rsb means relative strength bar.
+new_rsb(src) =>
+    upw = rma( max(change(src), 0), rsl)
+    dow = rma(-min(change(src), 0), rsl)
+
+    res = dow == 0 ? 100 : upw == 0 ? 0 : 100 - (100 / (1 + upw / dow))
+
+    res > 70
+
+// new_rsi returns the relative strength indicator for three isolated strength
+// indications in a row followed by three missing relative strengt indications
+// as calculated by new_rsb. Here rsi means relative strength indicator.
+//
+//     ... S S S W W W ...
+//
+new_rsi(src) =>
+    tsb = new_rsb(src)[5] and new_rsb(src)[4] and new_rsb(src)[3]
+    twb = not new_rsb(src)[2] and not new_rsb(src)[1] and not new_rsb(src)[0]
+    crb = new_crb()
+
+    tsb and twb and crb
+
+
+plotshape(new_rsi(close), text="RSI", title="Indicator", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)

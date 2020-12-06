@@ -154,4 +154,4 @@ plot(rb5, title="Resistance", color=color.gray, linewidth=0, transp=50)
 
 act = new_mds() and new_rss()
 
-plotshape(act, text="SHORT",  title="Indicator", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red,   textcolor=color.white, transp=0)
+plotshape(act, text="SHORT", title="Indicator", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red,   textcolor=color.white, transp=0)
