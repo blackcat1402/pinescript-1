@@ -14,8 +14,8 @@ study(title="Test", shorttitle="Test", overlay=true)
 
 
 
-rsl = input(title="RSI Length", type=input.integer, defval = 21, minval = 1, step=1)
-rsp = input(title="RSI Pivot",  type=input.integer, defval = 60, minval = 1, step=1)
+rsl = input(title="RSI Length", type=input.integer, defval=21, minval=1, step=1)
+rsp = input(title="RSI Pivot",  type=input.integer, defval=60, minval=1, step=1)
 
 
 

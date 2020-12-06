@@ -14,8 +14,8 @@ study(title="Test", shorttitle="Test", overlay=true)
 
 
 
-hrb = input(title="HPI Recent Bar",   type=input.integer, defval = 50,   minval = 1,     step=1    )
-hpc = input(title="HPI Price Change", type=input.float,   defval = 0.05, minval = 0.001, step=0.001)
+hrb = input(title="HPI Recent Bar",   type=input.integer, defval=50,   minval=1,     step=1    )
+hpc = input(title="HPI Price Change", type=input.float,   defval=0.05, minval=0.001, step=0.001)
 
 
 
