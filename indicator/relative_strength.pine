@@ -6,9 +6,19 @@ study(title="Relative Strength", shorttitle="Relative Strength", overlay=true)
 
 
 
-rsl = input(14, minval=1, title="RSI Length")
+rsl = input(21, minval=1, title="RSI Length")
+rsp = input(60, minval=1, title="RSI Pivot")
 
 
+
+// new_bth verifies if the number num is between the threshold thr considering
+// the deviation dev. Below 14 is between 13 and 17. Here bth means between
+// threshold.
+//
+//     new_bth(14, 15, 2) => true
+//
+new_bth(num, thr, dev) =>
+  thr - dev < num and num < dev + thr
 
 // new_crb returns true if the current bar is red, that is, the current open
 // price is higher than the current close price. This signals a local downward
@@ -22,22 +32,14 @@ new_rsb(src) =>
     upw = rma( max(change(src), 0), rsl)
     dow = rma(-min(change(src), 0), rsl)
 
-    res = dow == 0 ? 100 : upw == 0 ? 0 : 100 - (100 / (1 + upw / dow))
+    dow == 0 ? 100 : upw == 0 ? 0 : 100 - (100 / (1 + upw / dow))
 
-    res > 70
-
-// new_rsi returns the relative strength indicator for three isolated strength
-// indications in a row followed by three missing relative strengt indications
-// as calculated by new_rsb. Here rsi means relative strength indicator.
-//
-//     ... S S S W W W ...
-//
-new_rsi(src) =>
-    tsb = new_rsb(src)[5] and new_rsb(src)[4] and new_rsb(src)[3]
-    twb = not new_rsb(src)[2] and not new_rsb(src)[1] and not new_rsb(src)[0]
-    crb = new_crb()
-
-    tsb and twb and crb
+// new_rsi returns the relative strength indicator for overbought price peaks.
+// If the RSI band crosses under the RSI turning point given by rsp then new_rsi
+// returns true.
+new_rsi(src, rsp) =>
+    new_rsb(src)[1] > rsp and new_rsb(src)[0] < rsp
 
 
-plotshape(new_rsi(close), text="RSI", title="Indicator", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)
+
+plotshape(new_rsi(close, rsp), text="RSI", title="Indicator", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)

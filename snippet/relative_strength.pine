@@ -1,0 +1,7 @@
+// new_hpb returns the relative strength indicator for the current bar, based on
+// the running moving average. Here rsb means relative strength bar.
+new_rsb(src) =>
+    upw = rma( max(change(src), 0), rsl)
+    dow = rma(-min(change(src), 0), rsl)
+
+    dow == 0 ? 100 : upw == 0 ? 0 : 100 - (100 / (1 + upw / dow))
