@@ -1,0 +1,48 @@
+//@version=4
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+study(title="Test", shorttitle="Test", overlay=true)
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+rsl = input(title="RSI Length", type=input.integer, defval = 21, minval = 1, step=1)
+rsp = input(title="RSI Pivot",  type=input.integer, defval = 60, minval = 1, step=1)
+
+
+
+// new_crb returns true if the current bar is red, that is, the current open
+// price is higher than the current close price. This signals a local downward
+// movement. Here crb means current red bar.
+new_crb() =>
+    open > close
+
+// new_hpb returns the relative strength indicator for the current bar, based on
+// the running moving average. Here rsb means relative strength bar.
+new_rsb(src, rsl) =>
+    upw = rma( max(change(src), 0), rsl)
+    dow = rma(-min(change(src), 0), rsl)
+
+    dow == 0 ? 100 : upw == 0 ? 0 : 100 - (100 / (1 + upw / dow))
+
+// new_rsi returns the relative strength indicator for overbought price peaks.
+// If the RSI band crosses under the RSI turning point given by rsp then new_rsi
+// returns true.
+new_rsi(src, rsl, rsp) =>
+    new_rsb(src, rsl)[1] > rsp and new_rsb(src, rsl)[0] < rsp
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+plotshape(new_rsi(close, rsl, rsp), text="RSI", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)
