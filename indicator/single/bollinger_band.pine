@@ -19,10 +19,6 @@ bbs = input(title="BB Stddev", type=input.float,   defval=2.0, minval=0.1, step=
 
 
 
-// -------------------------------------------------------------------------- //
-
-
-
 // new_per calculates the percentage of a fraction based on the given absolute
 // value.
 //

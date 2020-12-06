@@ -6,7 +6,54 @@
 
 
 
-study(title="HPI, RSI", shorttitle="HPI, RSI", overlay=true)
+study(title="BBI, HPI, RSI", shorttitle="BBI, HPI, RSI", overlay=true)
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+// new_per calculates the percentage of a fraction based on the given absolute
+// value.
+//
+//     new_per(500, 5) => 1
+//
+new_per(abs, fra) =>
+    fra * 100 / abs
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+bbl = input(title="BBI Length", type=input.integer, defval=50,   minval=1,   step=1  )
+bbs = input(title="BBI Stddev", type=input.float,   defval=1.65, minval=0.1, step=0.1)
+
+
+
+// new_crb returns true if the current bar is red, that is, the current open
+// price is higher than the current close price. This signals a local downward
+// movement. Here crb means current red bar.
+new_crb() =>
+    open > close
+
+// new_bbu returns the upper bollinger band based on the length given by bbl and
+// the standard deviation given by bbs. Here bbu means bollinger band upper.
+new_bbu(src, bbl, bbs) =>
+    sma(src, bbl) + bbs * stdev(src, bbl)
+
+new_bbi(src, bbl, bbs) =>
+    ban = new_bbu(src, bbl, bbs)
+
+    cou = 0
+    bac = 8
+
+    for i = 0 to bac
+        cou := high[i] > ban[i] and ban[i] > low[i] ? cou + 1 : cou
+
+    new_per(bac, cou) > 30 and not (high[0] > ban[0] and ban[0] > low[0]) and new_crb()
 
 
 
@@ -18,14 +65,6 @@ hrb = input(title="HPI Recent Bar",   type=input.integer, defval=50,   minval=1,
 hpc = input(title="HPI Price Change", type=input.float,   defval=0.05, minval=0.001, step=0.001)
 
 
-
-// new_per calculates the percentage of a fraction based on the given absolute
-// value.
-//
-//     new_per(100, 5) => 5
-//
-new_per(abs, fra) =>
-    fra * 100 / abs
 
 // new_hps finds the highest price since reb. Here src is the source price e.g.
 // close. Here reb means recent bars. Here hps means high price since.
@@ -64,12 +103,6 @@ rsp = input(title="RSI Pivot",  type=input.integer, defval=60, minval=1, step=1)
 
 
 
-// new_crb returns true if the current bar is red, that is, the current open
-// price is higher than the current close price. This signals a local downward
-// movement. Here crb means current red bar.
-new_crb() =>
-    open > close
-
 // new_hpb returns the relative strength indicator for the current bar, based on
 // the running moving average. Here rsb means relative strength bar.
 new_rsb(src, rsl) =>
@@ -91,13 +124,15 @@ new_rsi(src, rsl, rsp) =>
 
 // new short trend indicator
 new_sti() =>
+    bbi = new_bbi(close, bbl, bbs)
     hpi = new_hpi(close, hrb, hpc)
     rsi = new_rsi(close, rsl, rsp)
 
-    fir = rsi[0]
-    sec = hpi[1]
+    bhi = (bbi[0] and hpi[0]) or (bbi[0] and hpi[1]) or (bbi[1] and hpi[0])
+    bri = (bbi[0] and rsi[0]) or (bbi[0] and rsi[1]) or (bbi[1] and rsi[0])
+    hri = (hpi[0] and rsi[0]) or (hpi[0] and rsi[1]) or (hpi[1] and rsi[0])
 
-    fir and sec
+    bhi or bri or hri
 
 
 
