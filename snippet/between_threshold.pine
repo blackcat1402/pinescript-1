@@ -1,0 +1,8 @@
+// new_bth verifies if the number num is between the threshold thr considering
+// the deviation dev. Below 14 is between 13 and 17. Here bth means between
+// threshold.
+//
+//     new_bth(14, 15, 2) => true
+//
+new_bth(num, thr, dev) =>
+  thr - dev < num and num < dev + thr
