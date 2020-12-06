@@ -1,0 +1,14 @@
+// new_bbu returns the upper bollinger band based on the length given by bbl and
+// the standard deviation given by bbs. Here bbu means bollinger band upper.
+new_bbu(src, bbl, bbs) =>
+    sma(src, bbl) + bbs * stdev(src, bbl)
+
+// new_bbl returns the lower bollinger band based on the length given by bbl and
+// the standard deviation given by bbs. Here bbl means bollinger band lower.
+new_bbl(src, bbl, bbs) =>
+    sma(src, bbl) - bbs * stdev(src, bbl)
+
+// new_bbm returns the median bollinger band based on the length given by bbl.
+// Here bbm means bollinger band median.
+new_bbm(src, bbl) =>
+    sma(src, bbl)

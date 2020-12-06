@@ -23,14 +23,29 @@ bbs = input(title="BB Stddev", type=input.float,   defval=2.0, minval=0.1, step=
 
 
 
+// new_per calculates the percentage of a fraction based on the given absolute
+// value.
+//
+//     new_per(500, 5) => 1
+//
+new_per(abs, fra) =>
+    fra * 100 / abs
+
+// new_bbu returns the upper bollinger band based on the length given by bbl and
+// the standard deviation given by bbs. Here bbu means bollinger band upper.
+new_bbu(src, bbl, bbs) =>
+    sma(src, bbl) + bbs * stdev(src, bbl)
+
 new_bbi(src, bbl, bbs) =>
-    std = bbs * stdev(src, bbl)
+    ban = new_bbu(src, bbl, bbs)
 
-    bbm = sma(src, bbl)
-    bbu = bbm + std
-    bbd = bbm - std
+    cou = 0
+    bac = 8
 
-    [bbu, bbm, bbd]
+    for i = 0 to bac
+        cou := high[i] > ban[i] and ban[i] > low[i] ? cou + 1 : cou
+
+    new_per(bac, cou) > 30 and not (high[0] > ban[0] and ban[0] > low[0])
 
 
 
@@ -38,8 +53,6 @@ new_bbi(src, bbl, bbs) =>
 
 
 
-[bbu, bbm, bbd] = new_bbi(close, bbl, bbs)
+plot(new_bbu(close, bbl, bbs), "BB Up", color=color.gray)
 
-plot(bbu, "BB Up",     color=color.gray)
-plot(bbm, "BB Median", color=color.gray)
-plot(bbd, "BB Down",   color=color.gray)
+plotshape(new_bbi(close, bbl, bbs), text="BBI", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)
