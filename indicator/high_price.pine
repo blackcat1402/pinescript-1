@@ -1,0 +1,39 @@
+//@version=4
+
+
+
+study("High Price", shorttitle="High Price", overlay=true)
+
+
+
+// new_per calculates the percentage of a fraction based on the given absolute
+// value.
+//
+//     new_per(100, 5) => 5
+//
+new_per(abs, fra) =>
+    fra * 100 / abs
+
+// new_hpr finds the highest price since reb. Here src is the source price e.g.
+// close. Here reb means recent bars. Here hpr means highest price.
+new_hpr(src, reb) =>
+    lcp = src[0]
+
+    for i = 0 to reb
+        lcp := src[i] > lcp ? src[i] : lcp
+
+    lcp
+
+// new_hpi returns a high price indicator based on the recent bars and their
+// associated price change. Here hpi means high price indicator.
+new_hpi() =>
+    // Define the n recent bars to look back. Here reb means recent bars.
+    reb = 100
+    // Define the price change to consider in the past. Here prh means price
+    // change.
+    prh = 0.001
+
+    (new_per(close, new_hpr(close, reb)) - 100) > prh ? na : true
+
+
+plotshape(new_hpi(), text="HPI",  title="Indicator", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)

@@ -10,9 +10,10 @@ mcf = input(title="MACD Fast",   type=input.integer, defval = 4,  minval = 1)
 mcs = input(title="MACD Slow",   type=input.integer, defval = 21, minval = 1)
 mcl = input(title="MACD Length", type=input.integer, defval = 4,  minval = 1)
 
-rco = input(title="RSI Confirmation", type=input.integer, defval=75,  minval=1,   maxval=100, step=1) // Percentage requirement of RSI crossing against close price.
-rmu = input(title="RSI Multiplier",   type=input.float,   defval=4.8, minval=0.1,             step=0.2)
-rsl = input(title="RSI Length",       type=input.integer, defval=21,  minval=1,               step=1)
+rco = input(title="RSI Confirmation", type=input.integer, defval=75,   minval=1,     maxval=100, step=1   ) // Percentage requirement of RSI crossing against close price.
+rmu = input(title="RSI Multiplier",   type=input.float,   defval=2.6,  minval=0.1,               step=0.2 )
+rsl = input(title="RSI Length",       type=input.integer, defval=80,   minval=1,                 step=1   )
+rlm = input(title="RSI Lift",         type=input.float,   defval=0.05, minval=0.001,             step=0.01)
 
 
 
@@ -135,15 +136,15 @@ new_rss() =>
 
 
 
-plot(rb1, title="Resistance", color=color.gray, linewidth=0, transp=50)
+// plot(rb1, title="Resistance", color=color.gray, linewidth=0, transp=50)
 // plot(rb2, title="Resistance", color=color.gray, linewidth=0, transp=50)
 // plot(rb3, title="Resistance", color=color.gray, linewidth=0, transp=50)
 // plot(rb4, title="Resistance", color=color.gray, linewidth=0, transp=50)
-// plot(rb5, title="Resistance", color=color.gray, linewidth=0, transp=50)
+plot(rb5, title="Resistance", color=color.gray, linewidth=0, transp=50)
 // plot(rb6, title="Resistance", color=color.gray, linewidth=0, transp=50)
 // plot(rb7, title="Resistance", color=color.gray, linewidth=0, transp=50)
 // plot(rb8, title="Resistance", color=color.gray, linewidth=0, transp=50)
-plot(rb9, title="Resistance", color=color.gray, linewidth=0, transp=50)
+// plot(rb9, title="Resistance", color=color.gray, linewidth=0, transp=50)
 
 
 
