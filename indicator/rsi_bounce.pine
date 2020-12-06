@@ -1,0 +1,156 @@
+//@version=4
+
+
+
+study("RSI Bounce", shorttitle="RSI Bounce", overlay=true)
+
+
+
+mcf = input(title="MACD Fast",   type=input.integer, defval = 4,  minval = 1)
+mcs = input(title="MACD Slow",   type=input.integer, defval = 21, minval = 1)
+mcl = input(title="MACD Length", type=input.integer, defval = 4,  minval = 1)
+
+rco = input(title="RSI Confirmation", type=input.integer, defval=75,  minval=1,   maxval=100, step=1) // Percentage requirement of RSI crossing against close price.
+rmu = input(title="RSI Multiplier",   type=input.float,   defval=4.8, minval=0.1,             step=0.2)
+rsl = input(title="RSI Length",       type=input.integer, defval=21,  minval=1,               step=1)
+
+
+
+new_bet(num, thr, dev) =>
+  thr - dev < num and num < dev + thr
+
+new_ema(s, p) =>
+    ema = 0.
+    sf = 2 / (p + 1)
+    ema := nz(ema[1] + sf * (s - ema[1]), s)
+
+// new_mds returns the MACD indicator for short signals.
+new_mds() =>
+    // RSI overbought threshold.
+    rob = 80
+
+    mup = rma( max(change(close), 0), 3)
+    mdo = rma(-min(change(close), 0), 3)
+
+    rsi = mdo == 0 ? 100 : mup == 0 ? 0 : 100 - (100 / (1 + mup / mdo))
+    wob = rsi[0] >= rob or rsi[1] >= rob or rsi[2] >= rob or rsi[3] >= rob or rsi[4] >= rob or rsi[5] >= rob
+
+    [mcd,_,_] = macd(close[0], mcf, mcs, mcl)
+    sig = ema(mcd, mcl)
+
+    cross(mcd, sig) and mcd < sig and wob ? true : false
+
+// new_mdl returns the MACD indicator for long signals.
+new_mdl() =>
+    // RSI oversold threshold.
+    ros = 20
+
+    mup = rma( max(change(close), 0), 3)
+    mdo = rma(-min(change(close), 0), 3)
+
+    rsi = mdo == 0 ? 100 : mup == 0 ? 0 : 100 - (100 / (1 + mup / mdo))
+    wos = rsi[0] <= ros or rsi[1] <= ros or rsi[2] <= ros or rsi[3] <= ros or rsi[4] <= ros or rsi[5] <= ros
+
+    [mcd,_,_] = macd(close[0], mcf, mcs, mcl)
+    sig = ema(mcd, mcl)
+
+    cross(mcd, sig) and mcd > sig and wos ? true : false
+
+// new_per calculates the percentage of a fraction based on the given absolute
+// value.
+//
+//     new_per(100, 5) => 5
+//
+new_per(abs, fra) =>
+    fra * 100 / abs
+
+// new_rsi returns a new RSI series based on the given value and length. Here v
+// means value and l means length.
+new_rsi(v, l) =>
+    src = close
+    auc = new_ema(max(src - src[1], 0), 2 * l - 1)
+    adc = new_ema(max(src[1] - src, 0), 2 * l - 1)
+
+    quo = (l - 1) * (adc * v / (100 - v) - auc)
+    iff(quo >= 0, src + quo, src + quo * (100 - v) / v)
+
+
+
+// We track the total of RSI series we work with. This is used for dynamic
+// signal confirmation. We want to get a certain percentage of confirmations in
+// order to trigger long or short. Note this must align with the number of RSI
+// bands configured below. Var trs means total RSI series.
+trs = 9
+
+// We hard code the RSI median since the RSI indicators evolve around the idea
+// of reversion to the mean. Manipulating the median should not perform better
+// over time.
+rsv = 50
+
+rb1 = new_rsi(rsv+4*rmu, rsl) // RSI band series one. This is the highest.
+rb2 = new_rsi(rsv+3*rmu, rsl) // RSI band series two.
+rb3 = new_rsi(rsv+2*rmu, rsl) // RSI band series three.
+rb4 = new_rsi(rsv+1*rmu, rsl) // RSI band series four.
+rb5 = new_rsi(rsv+0*rmu, rsl) // RSI band series five. This is the median.
+rb6 = new_rsi(rsv-1*rmu, rsl) // RSI band series six.
+rb7 = new_rsi(rsv-2*rmu, rsl) // RSI band series seven.
+rb8 = new_rsi(rsv-3*rmu, rsl) // RSI band series eight.
+rb9 = new_rsi(rsv-4*rmu, rsl) // RSI band series nine. This is the lowest.
+
+
+
+// new_acs verifies a series crossover. Here sco means series crossover.
+new_acs() =>
+    // We track the count of activated crossover signals in order to calculate a
+    // percentage of active crossover signals based on the total RSI series. Var
+    // acs means active crossover signals.
+    acs = 0
+
+    src = low
+
+    // Collect all short signals based on the RSI series crossing. We verify how
+    // many confirmations we get in order to derive the probability of a
+    // successful trade.
+    acs := rb1 < src ? acs + 1 : acs
+    acs := rb2 < src ? acs + 1 : acs
+    acs := rb3 < src ? acs + 1 : acs
+    acs := rb4 < src ? acs + 1 : acs
+    acs := rb5 < src ? acs + 1 : acs
+    acs := rb6 < src ? acs + 1 : acs
+    acs := rb7 < src ? acs + 1 : acs
+    acs := rb8 < src ? acs + 1 : acs
+    acs := rb9 < src ? acs + 1 : acs
+
+    new_per(trs, acs) >= rco
+
+new_rss() =>
+    // One activation decision is made based on the amount of RSI series
+    // crossings against the close price. Var rcc means RSI crossing
+    // confirmation.
+    rcc = new_acs()
+
+    // We retrun 1 if we get sufficient short signals. We return na if we did
+    // not detect sufficient short signals.
+    rcc ? 1 : na
+
+
+
+plot(rb1, title="Resistance", color=color.gray, linewidth=0, transp=50)
+// plot(rb2, title="Resistance", color=color.gray, linewidth=0, transp=50)
+// plot(rb3, title="Resistance", color=color.gray, linewidth=0, transp=50)
+// plot(rb4, title="Resistance", color=color.gray, linewidth=0, transp=50)
+// plot(rb5, title="Resistance", color=color.gray, linewidth=0, transp=50)
+// plot(rb6, title="Resistance", color=color.gray, linewidth=0, transp=50)
+// plot(rb7, title="Resistance", color=color.gray, linewidth=0, transp=50)
+// plot(rb8, title="Resistance", color=color.gray, linewidth=0, transp=50)
+plot(rb9, title="Resistance", color=color.gray, linewidth=0, transp=50)
+
+
+
+// plotshape(new_mds(), text="MACD", title="Indicator", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red,   textcolor=color.white, transp=0)
+// plotshape(new_mdl(), text="MACD", title="Indicator", location=location.belowbar, style=shape.labelup,   size=size.tiny, color=color.green, textcolor=color.white, transp=0)
+// plotshape(new_rss(), text="RSI",  title="Indicator", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red,   textcolor=color.white, transp=0)
+
+act = new_mds() and new_rss()
+
+plotshape(act, text="SHORT",  title="Indicator", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red,   textcolor=color.white, transp=0)
