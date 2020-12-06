@@ -1,0 +1,14 @@
+// new_cro calculates a common channel in which two series cross each other
+// multiple times. The cross count and cross threshold can be configured. The
+// use case for this method is to determine if two series follow each other or
+// cross sharply.
+new_cro(bas, fir, sec) =>
+    cou = 0
+
+    for i = 0 to 40
+        per = new_per(fir[i] - bas[i], sec[i] - bas[i])
+
+        if per > 100 - rct and per < 100 + rct
+            cou := cou +1
+
+    cou < rcc and crossover(fir, sec)

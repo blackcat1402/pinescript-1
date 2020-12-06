@@ -1,0 +1,7 @@
+// new_per calculates the percentage of a fraction based on the given absolute
+// value.
+//
+//     new_per(500, 5) => 1
+//
+new_per(abs, fra) =>
+    fra * 100 / abs
