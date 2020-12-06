@@ -122,11 +122,14 @@ new_rsi(src, rsl, rsp) =>
 // -------------------------------------------------------------------------- //
 
 
+
 // new short trend indicator
 new_sti() =>
-    bbi = new_bbi(close, bbl, bbs)
-    hpi = new_hpi(close, hrb, hpc)
-    rsi = new_rsi(close, rsl, rsp)
+    src = close
+
+    bbi = new_bbi(src, bbl, bbs)
+    hpi = new_hpi(src, hrb, hpc)
+    rsi = new_rsi(src, rsl, rsp)
 
     bhi = (bbi[0] and hpi[0]) or (bbi[0] and hpi[1]) or (bbi[1] and hpi[0])
     bri = (bbi[0] and rsi[0]) or (bbi[0] and rsi[1]) or (bbi[1] and rsi[0])
@@ -137,3 +140,17 @@ new_sti() =>
 
 
 plotshape(new_sti(), text="SHORT", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)
+
+
+
+// TODO minefield indicator, we need multiple bands crossing in price increase
+// situations in order to cancel out false positive short signals.
+
+mal = input(title="MFIA Length", type=input.integer, defval=100,  minval=1,    step=1   )
+mas = input(title="MFIA Stddev", type=input.float,   defval=0.75, minval=0.05, step=0.05)
+
+mbl = input(title="MFIB Length", type=input.integer, defval=200,  minval=1,    step=1   )
+mbs = input(title="MFIB Stddev", type=input.float,   defval=0.75, minval=0.05, step=0.05)
+
+plot(new_bbu(close, mal, mas), "MFI", color=color.white, transp=50)
+plot(new_bbu(close, mbl, mbs), "MFI", color=color.blue,  transp=50)

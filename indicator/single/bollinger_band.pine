@@ -6,7 +6,7 @@
 
 
 
-study(title="BB", shorttitle="BB", overlay=true)
+study(title="BBI", shorttitle="BBI", overlay=true)
 
 
 
@@ -14,8 +14,8 @@ study(title="BB", shorttitle="BB", overlay=true)
 
 
 
-bbl = input(title="BB Length", type=input.integer, defval=21,  minval=1,   step=1  )
-bbs = input(title="BB Stddev", type=input.float,   defval=2.0, minval=0.1, step=0.1)
+// bbl = input(title="BB Length", type=input.integer, defval=50,  minval=1,    step=1   )
+// bbs = input(title="BB Stddev", type=input.float,   defval=1.5, minval=0.01, step=0.05)
 
 
 
@@ -49,6 +49,10 @@ new_bbi(src, bbl, bbs) =>
 
 
 
-plot(new_bbu(close, bbl, bbs), "BB Up", color=color.gray)
+// plot(new_bbu(close, 100, 1.25), "BBI", color=color.white, transp=50)
+// plot(new_bbu(close, 300, 0.75), "BBI", color=color.blue,  transp=50)
 
-plotshape(new_bbi(close, bbl, bbs), text="BBI", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)
+one = new_bbu(close, 100, 1.25)
+two = new_bbu(close, 300, 0.75)
+
+plotshape(cross(one, two) and close > one, text="BBI", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)
