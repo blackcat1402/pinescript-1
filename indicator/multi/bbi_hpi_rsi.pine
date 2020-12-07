@@ -14,6 +14,27 @@ study(title="BBI, HPI, RSI", shorttitle="BBI, HPI, RSI", overlay=true)
 
 
 
+// new_cor returns true if the series given by ser results in true for at least
+// the minimal required amount of time defined by min over a period of recent
+// bars given by rec. Note that ser must be of type series[bool].
+//
+//     - - | | -     new_cor(ser, 2, 2) => true
+//     | - - | -     new_cor(ser, 2, 5) => true
+//
+new_cor(ser, min, rec) =>
+    cou = 0
+
+    for i = 0 to rec
+        cou := ser[i] ? cou + 1 : cou
+
+    cou >= min
+
+// new_crb returns true if the current bar is red, that is, the current open
+// price is higher than the current close price. This signals a local downward
+// movement. Here crb means current red bar.
+new_crb() =>
+    open > close
+
 // new_per calculates the percentage of a fraction based on the given absolute
 // value.
 //
@@ -28,16 +49,11 @@ new_per(abs, fra) =>
 
 
 
-bbl = input(title="BBI Length", type=input.integer, defval=50,   minval=1,   step=1  )
-bbs = input(title="BBI Stddev", type=input.float,   defval=1.65, minval=0.1, step=0.1)
+bbl = input(title="BBI Length", type=input.integer, defval=70,   minval=1,    step=1  )
+bbs = input(title="BBI Stddev", type=input.float,   defval=2.65, minval=0.1,  step=0.1)
+bbp = input(title="BBI Pivot",  type=input.float,   defval=20,   minval=0.01, step=1  )
 
 
-
-// new_crb returns true if the current bar is red, that is, the current open
-// price is higher than the current close price. This signals a local downward
-// movement. Here crb means current red bar.
-new_crb() =>
-    open > close
 
 // new_bbu returns the upper bollinger band based on the length given by bbl and
 // the standard deviation given by bbs. Here bbu means bollinger band upper.
@@ -45,52 +61,15 @@ new_bbu(src, bbl, bbs) =>
     sma(src, bbl) + bbs * stdev(src, bbl)
 
 new_bbi(src, bbl, bbs) =>
-    ban = new_bbu(src, bbl, bbs)
+    bbu = new_bbu(src, bbl, bbs)
 
     cou = 0
     bac = 8
 
     for i = 0 to bac
-        cou := high[i] > ban[i] and ban[i] > low[i] ? cou + 1 : cou
+        cou := high[i] > bbu[i] and bbu[i] > low[i] ? cou + 1 : cou
 
-    new_per(bac, cou) > 30 and not (high[0] > ban[0] and ban[0] > low[0]) and new_crb()
-
-
-
-// -------------------------------------------------------------------------- //
-
-
-
-hrb = input(title="HPI Recent Bar",   type=input.integer, defval=50,   minval=1,     step=1    )
-hpc = input(title="HPI Price Change", type=input.float,   defval=0.05, minval=0.001, step=0.001)
-
-
-
-// new_hps finds the highest price since reb. Here src is the source price e.g.
-// close. Here reb means recent bars. Here hps means high price since.
-new_hps(src, reb) =>
-    lcp = src[0]
-
-    for i = 0 to reb
-        lcp := src[i] > lcp ? src[i] : lcp
-
-    lcp
-
-// new_hpb returns a high price indicator for the current bar, based on the
-// recent bars and their associated price change. Here hpb means high price
-// bar.
-new_hpb(src, hrb, hpc) =>
-    (new_per(src, new_hps(src, hrb)) - 100) > hpc ? na : true
-
-// new_hpi returns a high price indicator for three or four high price signals
-// in a row as calculated by new_hpb. Here hpi means high price indicator.
-new_hpi(src, hrb, hpc) =>
-    hpb = new_hpb(src, hrb, hpc)
-
-    thr = hpb[0] and hpb[1] and hpb[2]
-    fou = hpb[0] and hpb[1] and hpb[2] and hpb[3]
-
-    thr or fou
+    new_per(bac, cou) > bbp and not (high[0] > bbu[0] and bbu[0] > low[0])
 
 
 
@@ -98,12 +77,22 @@ new_hpi(src, hrb, hpc) =>
 
 
 
-rsl = input(title="RSI Length", type=input.integer, defval=21, minval=1, step=1)
-rsp = input(title="RSI Pivot",  type=input.integer, defval=60, minval=1, step=1)
+hrb = input(title="HPI Recent Bar", type=input.integer, defval=175, minval=1, step=1)
 
 
 
-// new_hpb returns the relative strength indicator for the current bar, based on
+// new_hpi returns a high price indicator for the most recent bars since hrb.
+// Here hpi means high price indicator.
+new_hpi(hrb) =>
+    highest(open, hrb) == open and new_crb()
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+// new_rsb returns the relative strength indicator for the current bar, based on
 // the running moving average. Here rsb means relative strength bar.
 new_rsb(src, rsl) =>
     upw = rma( max(change(src), 0), rsl)
@@ -112,10 +101,13 @@ new_rsb(src, rsl) =>
     dow == 0 ? 100 : upw == 0 ? 0 : 100 - (100 / (1 + upw / dow))
 
 // new_rsi returns the relative strength indicator for overbought price peaks.
-// If the RSI band crosses under the RSI turning point given by rsp then new_rsi
-// returns true.
-new_rsi(src, rsl, rsp) =>
-    new_rsb(src, rsl)[1] > rsp and new_rsb(src, rsl)[0] < rsp
+new_rsi(src) =>
+    one = new_rsb(src, 120)[1] < 57 and new_rsb(src, 120)[0] > 57
+    two = new_rsb(src, 50 )[1] < 65 and new_rsb(src, 50 )[0] > 65
+    thr = new_rsb(src, 30 )[1] < 70 and new_rsb(src, 30 )[0] > 70
+    fou = new_rsb(src, 17 )[1] < 63 and new_rsb(src, 17 )[0] > 63
+
+    one or two or thr or fou
 
 
 
@@ -124,33 +116,26 @@ new_rsi(src, rsl, rsp) =>
 
 
 // new short trend indicator
+//
+// activate if
+//
+//     - 2 in a row
+//     - 3 over 5 bars
+//
 new_sti() =>
     src = close
 
+    crb = new_crb()
     bbi = new_bbi(src, bbl, bbs)
-    hpi = new_hpi(src, hrb, hpc)
-    rsi = new_rsi(src, rsl, rsp)
+    hpi = new_hpi(hrb)
+    rsi = new_rsi(src)
 
-    bhi = (bbi[0] and hpi[0]) or (bbi[0] and hpi[1]) or (bbi[1] and hpi[0])
-    bri = (bbi[0] and rsi[0]) or (bbi[0] and rsi[1]) or (bbi[1] and rsi[0])
-    hri = (hpi[0] and rsi[0]) or (hpi[0] and rsi[1]) or (hpi[1] and rsi[0])
+    bhi = (bbi[0] and hpi[0]) or (bbi[0] and hpi[1])
+    bri = (bbi[0] and rsi[0]) or (bbi[0] and rsi[1])
+    hri = (hpi[0] and rsi[0]) or (hpi[0] and rsi[1])
 
-    bhi or bri or hri
+    crb and (bhi or bri or hri)
 
 
 
 plotshape(new_sti(), text="SHORT", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)
-
-
-
-// TODO minefield indicator, we need multiple bands crossing in price increase
-// situations in order to cancel out false positive short signals.
-
-mal = input(title="MFIA Length", type=input.integer, defval=100,  minval=1,    step=1   )
-mas = input(title="MFIA Stddev", type=input.float,   defval=0.75, minval=0.05, step=0.05)
-
-mbl = input(title="MFIB Length", type=input.integer, defval=200,  minval=1,    step=1   )
-mbs = input(title="MFIB Stddev", type=input.float,   defval=0.75, minval=0.05, step=0.05)
-
-plot(new_bbu(close, mal, mas), "MFI", color=color.white, transp=50)
-plot(new_bbu(close, mbl, mbs), "MFI", color=color.blue,  transp=50)
