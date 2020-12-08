@@ -1,0 +1,9 @@
+// new_lps finds the lowest price since bar. Here src is the source price e.g.
+// close. Here bar means recent bars. Here lps means lowest price since.
+new_lps(src, bar) =>
+    lps = src[0]
+
+    for i = 0 to bar
+        lps := src[i] < lps ? src[i] : lps
+
+    lps

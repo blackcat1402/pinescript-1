@@ -1,0 +1,175 @@
+//@version=4
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+study(title="RTF", shorttitle="RTF", overlay=true)
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+var OS = "OS" // Open Short. The signal to start a short trade.
+var CS = "CS" // Close Short. The signal to end a short trade.
+var OL = "OL" // Open Long. The signal to start a long trade.
+var CL = "CL" // Close Long. The signal to end a long trade.
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+// Current Cycle. The cycle of the current trade. Either OS, CS, OL or CL. Note
+// that we start with the default value CL to go first with a short trade.
+var CC = array.new_string(1, CL)
+get_ccc() =>
+    array.get(CC, 0)
+set_ccc(v) =>
+    array.set(CC, 0, v)
+
+// First Price. The entry price of our current trade. Based on this price we
+// decide when to take profit and when to move on.
+var FP = array.new_float(1, 0.0)
+get_cfp() =>
+    array.get(FP, 0)
+set_cfp(v) =>
+    array.set(FP, 0, v)
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+rtp = input(title="RTF Take Profit",     type=input.float,   defval=0.5, minval=0.1, step=0.1)
+rar = input(title="RTF Active Reversal", type=input.float,   defval=0.3, minval=0.1, step=0.1)
+hrb = input(title="HPI Recent Bar",      type=input.integer, defval=50,  minval=1,   step=1  )
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+// new_bth verifies if the number num is between the threshold thr considering
+// the deviation dev. Below 14 is between 13 and 17. Here bth means between
+// threshold.
+//
+//     new_bth(14, 15, 2) => true
+//
+new_bth(num, thr, dev) =>
+  thr - dev < num and num < dev + thr
+
+// new_hps finds the highest price since bar. Here src is the source price e.g.
+// close. Here bar means recent bars. Here hps means highest price.
+new_hps(src, bar) =>
+    hps = src[0]
+
+    for i = 0 to bar
+        hps := src[i] > hps ? src[i] : hps
+
+    hps
+
+// new_lps finds the lowest price since bar. Here src is the source price e.g.
+// close. Here bar means recent bars. Here lps means lowest price since.
+new_lps(src, bar) =>
+    lps = src[0]
+
+    for i = 0 to bar
+        lps := src[i] < lps ? src[i] : lps
+
+    lps
+
+// new_per calculates the percentage of a fraction based on the given absolute
+// value.
+//
+//     new_per(500, 5) => 1
+//
+new_per(abs, fra) =>
+    fra * 100 / abs
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+// new_hpi returns a high price indicator for the most recent bars since hrb.
+// Here hpi means high price indicator.
+new_hpi(hrb) =>
+    highest(open, hrb) == open
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+// new_cos returns a signal to open a short position. This signals the beginning
+// of a trade aiming to profit from downward trends. After opening a short
+// position we wait for the close short signal. Here cos means cycle open short.
+new_cos() =>
+    new_hpi(hrb)
+
+// new_ccs returns a signal to close a short position. This signals the end of a
+// trade aiming to profit from downward trends. After closing a short position
+// we wait for the open long signal. Here ccs means cycle close short.
+new_ccs() =>
+    100 - new_per(get_cfp(), close) >= rtp
+
+// active reversal
+new_rar() =>
+    tot = new_hps(close, 10) - new_lps(close, 10)
+    cur = new_hps(close, 10) - close
+
+    new_per(tot, cur) >= 95
+
+// new_col returns a signal to open a long position. This signals the beginning
+// of a trade aiming to profit from upward trends. After opening a long position
+// we wait for the close long signal. Here col means cycle open long.
+new_col() =>
+    new_hpi(hrb / 10)
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+cos = get_ccc() == CL and  new_cos()               ? true : false
+ccs = get_ccc() == OS and (new_ccs() or new_rar()) ? true : false // active reversal
+col = get_ccc() == CS and  new_col()               ? true : false
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+// On any given cycle change we track the current cycle globally so that we
+// always know in which cycle the current trade is in, if any. Note there might
+// be no active trades for some time.
+set_ccc(get_ccc() == CL and cos ? OS : get_ccc())
+set_ccc(get_ccc() == OS and ccs ? CS : get_ccc())
+set_ccc(get_ccc() == CS and col ? OL : get_ccc())
+
+// One bar after the signal switch our bots get instructed to enter a different
+// trade cycle. At this point we track the open price because this is the most
+// likely price we get when the bots open their deals against the exchanges.
+// Note there will always be slippage.
+set_cfp(cos[1] ? open[0] : get_cfp())
+set_cfp(col[1] ? open[0] : get_cfp())
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+plotshape(cos, text=OS, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.red,   textcolor=color.white, transp=0)
+plotshape(ccs, text=CS, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.red,   textcolor=color.white, transp=0)
+plotshape(col, text=OL, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.green, textcolor=color.white, transp=0)
