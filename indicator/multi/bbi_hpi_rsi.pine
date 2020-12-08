@@ -14,6 +14,36 @@ study(title="BBI, HPI, RSI", shorttitle="BBI, HPI, RSI", overlay=true)
 
 
 
+var OS = "OS" // Open Short. The signal to start a short trade.
+var CS = "CS" // Close Short. The signal to end a short trade.
+var OL = "OL" // Open Long. The signal to start a long trade.
+var CL = "CL" // Close Long. The signal to end a long trade.
+
+// Current Cycle. The cycle of the current trade. Either OS, CS, OL or CL.
+var CC = array.new_string(1, CL)
+get_ccc() =>
+    array.get(CC, 0)
+set_ccc(v) =>
+    array.set(CC, 0, v)
+
+var FP = array.new_float(1, 0.0) // First Price. The entry price of our current trade.
+var LP = array.new_float(1, 0.0) // Last Price. The latest price of our current trade.
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+tsl = input(title="Trailing Stop Loss",  type=input.float, defval=0.2, minval=0.01, step=0.01)
+mtp = input(title="Minimum Take Profit", type=input.float, defval=0.2, minval=0.01, step=0.01)
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
 // new_cor returns true if the series given by ser results in true for at least
 // the minimal required amount of time defined by min over a period of recent
 // bars given by rec. Note that ser must be of type series[bool].
@@ -115,14 +145,10 @@ new_rsi(src) =>
 
 
 
-// new short trend indicator
-//
-// activate if
-//
-//     - 2 in a row
-//     - 3 over 5 bars
-//
-new_sti() =>
+// new_cos returns a signal to open a short position. This signals the beginning
+// of a trade aiming to profit from downward trends. After opening a short
+// position we wait for the close short signal. Here cos means cycle open short.
+new_cos() =>
     src = close
 
     crb = new_crb()
@@ -130,12 +156,66 @@ new_sti() =>
     hpi = new_hpi(hrb)
     rsi = new_rsi(src)
 
-    bhi = (bbi[0] and hpi[0]) or (bbi[0] and hpi[1])
-    bri = (bbi[0] and rsi[0]) or (bbi[0] and rsi[1])
-    hri = (hpi[0] and rsi[0]) or (hpi[0] and rsi[1])
+    bhi = (bbi[0] and hpi[0]) or (bbi[0] and hpi[1]) or (bbi[1] and hpi[0])
+    bri = (bbi[0] and rsi[0]) or (bbi[0] and rsi[1]) or (bbi[1] and rsi[0])
+    hri = (hpi[0] and rsi[0]) or (hpi[0] and rsi[1]) or (hpi[1] and rsi[0])
 
     crb and (bhi or bri or hri)
 
+// new_ccs returns a signal to close a short position. This signals the end of a
+// trade aiming to profit from downward trends. After closing a short position
+// we wait for the open long signal. Here ccs means cycle close short.
+new_ccs() =>
+    win = 100 - new_per(array.get(FP, 0), close) >= mtp
+
+    win
+
+// new_col returns a signal to open a long position. This signals the beginning
+// of a trade aiming to profit from upward trends. After opening a long position
+// we wait for the close long signal. Here col means cycle open long.
+new_col() =>
+    false
+
+// new_ccl returns a signal to close a long position. This signals the end of a
+// trade aiming to profit from upward trends. After closing a long position we
+// wait for the open short signal. Here clo means cycle close long.
+new_ccl() =>
+    false
 
 
-plotshape(new_sti(), text="SHORT", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)
+
+// -------------------------------------------------------------------------- //
+
+
+
+cos = (get_ccc() == CL or get_ccc() == CS) and new_cos() == true ? true : false
+ccs = get_ccc() == OS and new_ccs() == true ? true : false
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+// On any given cycle change we track the current cycle globally so that we
+// always know in which cycle the current trade is in, if any. Note there might
+// be no active trades for some time.
+set_ccc((get_ccc() == CL or get_ccc() == CS) and cos == true ? OS : get_ccc())
+set_ccc(get_ccc() == OS and ccs == true ? CS : get_ccc())
+
+// One bar after the signal switch our bots get instructed to enter a different
+// trade cycle. At this point we track the open price because this is the most
+// likely price we get when the bots open their deals against the exchanges.
+// Note there will always be slippage.
+array.set(FP, 0, (cos[1] == true ? open[0] : array.get(FP, 0)))
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+plotshape(cos, text=OS, location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red,   textcolor=color.white, transp=0)
+plotshape(ccs, text=CS, location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red,   textcolor=color.white, transp=0)
+// plotshape(col, text=OL, location=location.belowbar, style=shape.labelup,   size=size.tiny, color=color.green, textcolor=color.white, transp=0)
+// plotshape(ccl, text=CL, location=location.belowbar, style=shape.labelup,   size=size.tiny, color=color.green, textcolor=color.white, transp=0)
