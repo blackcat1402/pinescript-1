@@ -25,6 +25,14 @@ var CL = "CL" // Close Long. The signal to end a long trade.
 
 
 
+// Active Reversal. Indicating the change of direction we are trading. That is,
+// we go long or short multiple times.
+var AR = array.new_bool(1, false)
+get_car() =>
+    array.get(AR, 0)
+set_car(v) =>
+    array.set(AR, 0, v)
+
 // Current Cycle. The cycle of the current trade. Either OS, CS, OL or CL. Note
 // that we start with the default value CL to go first with a short trade.
 var CC = array.new_string(1, CL)
@@ -40,6 +48,7 @@ get_cfp() =>
     array.get(FP, 0)
 set_cfp(v) =>
     array.set(FP, 0, v)
+
 
 
 // -------------------------------------------------------------------------- //
@@ -93,16 +102,36 @@ new_lps(src, bar) =>
 new_per(abs, fra) =>
     fra * 100 / abs
 
+// new_pro figures out if the current trade is somehow profitable. We check if
+// we are trading in short direction. If this is true, we check if the first
+// price is still above the current close price. This would then indicate our
+// PNL is positive. Here pro means profit.
+new_pro() =>
+    sho = get_ccc() == OS or get_ccc() == CL
+    pro = sho ? get_cfp() >= close : false
+
+    pro
+
 
 
 // -------------------------------------------------------------------------- //
 
 
 
+// active reversal indicator
+new_ari() =>
+    hps = new_hps(close, 10)
+    lps = new_lps(close, 10)
+
+    thr = new_per(hps - lps, hps - close) >= rar
+    pro = new_pro()
+
+    thr and not pro
+
 // new_hpi returns a high price indicator for the most recent bars since hrb.
 // Here hpi means high price indicator.
 new_hpi(hrb) =>
-    highest(open, hrb) == open
+    highest(close, hrb) == close
 
 
 
@@ -122,18 +151,17 @@ new_cos() =>
 new_ccs() =>
     100 - new_per(get_cfp(), close) >= rtp
 
-// active reversal
-new_rar() =>
-    tot = new_hps(close, 10) - new_lps(close, 10)
-    cur = new_hps(close, 10) - close
-
-    new_per(tot, cur) >= 95
-
 // new_col returns a signal to open a long position. This signals the beginning
 // of a trade aiming to profit from upward trends. After opening a long position
 // we wait for the close long signal. Here col means cycle open long.
 new_col() =>
-    new_hpi(hrb / 10)
+    new_lps(close, hrb / 10)
+
+// new_ccl returns a signal to close a long position. This signals the end of a
+// trade aiming to profit from upward trends. After closing a long position we
+// wait for the open short signal. Here ccl means cycle close long.
+new_ccl() =>
+    100 - new_per(close, get_cfp()) >= rtp
 
 
 
@@ -141,13 +169,14 @@ new_col() =>
 
 
 
-cos = get_ccc() == CL and  new_cos()               ? true : false
-ccs = get_ccc() == OS and (new_ccs() or new_rar()) ? true : false // active reversal
-col = get_ccc() == CS and  new_col()               ? true : false
+cos = get_ccc() == CL and new_cos() ? true : false
+ccs = get_ccc() == OS and new_ccs() ? true : false
+col = get_ccc() == CS and new_col() ? true : false
+ccl = get_ccc() == OL and new_ccl() ? true : false
+
 
 
 // -------------------------------------------------------------------------- //
-
 
 
 // On any given cycle change we track the current cycle globally so that we
@@ -156,6 +185,7 @@ col = get_ccc() == CS and  new_col()               ? true : false
 set_ccc(get_ccc() == CL and cos ? OS : get_ccc())
 set_ccc(get_ccc() == OS and ccs ? CS : get_ccc())
 set_ccc(get_ccc() == CS and col ? OL : get_ccc())
+set_ccc(get_ccc() == OL and ccl ? CL : get_ccc())
 
 // One bar after the signal switch our bots get instructed to enter a different
 // trade cycle. At this point we track the open price because this is the most
@@ -173,3 +203,4 @@ set_cfp(col[1] ? open[0] : get_cfp())
 plotshape(cos, text=OS, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.red,   textcolor=color.white, transp=0)
 plotshape(ccs, text=CS, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.red,   textcolor=color.white, transp=0)
 plotshape(col, text=OL, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.green, textcolor=color.white, transp=0)
+plotshape(ccl, text=CL, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.green, textcolor=color.white, transp=0)
