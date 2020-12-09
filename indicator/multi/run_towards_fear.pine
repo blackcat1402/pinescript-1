@@ -65,35 +65,6 @@ hrb = input(title="HPI Recent Bar",      type=input.integer, defval=50,  minval=
 
 
 
-// new_bth verifies if the number num is between the threshold thr considering
-// the deviation dev. Below 14 is between 13 and 17. Here bth means between
-// threshold.
-//
-//     new_bth(14, 15, 2) => true
-//
-new_bth(num, thr, dev) =>
-  thr - dev < num and num < dev + thr
-
-// new_hps finds the highest price since bar. Here src is the source price e.g.
-// close. Here bar means recent bars. Here hps means highest price.
-new_hps(src, bar) =>
-    hps = src[0]
-
-    for i = 0 to bar
-        hps := src[i] > hps ? src[i] : hps
-
-    hps
-
-// new_lps finds the lowest price since bar. Here src is the source price e.g.
-// close. Here bar means recent bars. Here lps means lowest price since.
-new_lps(src, bar) =>
-    lps = src[0]
-
-    for i = 0 to bar
-        lps := src[i] < lps ? src[i] : lps
-
-    lps
-
 // new_per calculates the percentage of a fraction based on the given absolute
 // value.
 //
@@ -102,36 +73,21 @@ new_lps(src, bar) =>
 new_per(abs, fra) =>
     fra * 100 / abs
 
-// new_pro figures out if the current trade is somehow profitable. We check if
-// we are trading in short direction. If this is true, we check if the first
-// price is still above the current close price. This would then indicate our
-// PNL is positive. Here pro means profit.
-new_pro() =>
-    sho = get_ccc() == OS or get_ccc() == CL
-    pro = sho ? get_cfp() >= close : false
-
-    pro
-
 
 
 // -------------------------------------------------------------------------- //
 
 
 
-// active reversal indicator
-new_ari() =>
-    hps = new_hps(close, 10)
-    lps = new_lps(close, 10)
-
-    thr = new_per(hps - lps, hps - close) >= rar
-    pro = new_pro()
-
-    thr and not pro
-
 // new_hpi returns a high price indicator for the most recent bars since hrb.
 // Here hpi means high price indicator.
 new_hpi(hrb) =>
     highest(close, hrb) == close
+
+// new_lpi returns a low price indicator for the most recent bars since hrb.
+// Here lpi means low price indicator.
+new_lpi(hrb) =>
+    lowest(close, hrb) == close
 
 
 
@@ -143,7 +99,7 @@ new_hpi(hrb) =>
 // of a trade aiming to profit from downward trends. After opening a short
 // position we wait for the close short signal. Here cos means cycle open short.
 new_cos() =>
-    new_hpi(hrb)
+    new_hpi(hrb) or new_hpi(hrb / 2)
 
 // new_ccs returns a signal to close a short position. This signals the end of a
 // trade aiming to profit from downward trends. After closing a short position
@@ -155,7 +111,7 @@ new_ccs() =>
 // of a trade aiming to profit from upward trends. After opening a long position
 // we wait for the close long signal. Here col means cycle open long.
 new_col() =>
-    new_lps(close, hrb / 10)
+    new_lpi(hrb) or new_lpi(hrb / 2)
 
 // new_ccl returns a signal to close a long position. This signals the end of a
 // trade aiming to profit from upward trends. After closing a long position we
@@ -169,10 +125,10 @@ new_ccl() =>
 
 
 
-cos = get_ccc() == CL and new_cos() ? true : false
 ccs = get_ccc() == OS and new_ccs() ? true : false
-col = get_ccc() == CS and new_col() ? true : false
+cos = get_ccc() == CS and new_cos() ? true : false
 ccl = get_ccc() == OL and new_ccl() ? true : false
+col = get_ccc() == CL and new_col() ? true : false
 
 
 
@@ -182,17 +138,17 @@ ccl = get_ccc() == OL and new_ccl() ? true : false
 // On any given cycle change we track the current cycle globally so that we
 // always know in which cycle the current trade is in, if any. Note there might
 // be no active trades for some time.
-set_ccc(get_ccc() == CL and cos ? OS : get_ccc())
 set_ccc(get_ccc() == OS and ccs ? CS : get_ccc())
-set_ccc(get_ccc() == CS and col ? OL : get_ccc())
+set_ccc(get_ccc() == CS and cos ? OS : get_ccc())
 set_ccc(get_ccc() == OL and ccl ? CL : get_ccc())
+set_ccc(get_ccc() == CL and col ? OL : get_ccc())
 
-// One bar after the signal switch our bots get instructed to enter a different
-// trade cycle. At this point we track the open price because this is the most
-// likely price we get when the bots open their deals against the exchanges.
-// Note there will always be slippage.
-set_cfp(cos[1] ? open[0] : get_cfp())
-set_cfp(col[1] ? open[0] : get_cfp())
+
+if cos and not col
+    set_cfp(close)
+
+if col and not cos
+    set_cfp(close)
 
 
 
@@ -204,3 +160,5 @@ plotshape(cos, text=OS, location=location.abovebar, style=shape.labeldown, size=
 plotshape(ccs, text=CS, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.red,   textcolor=color.white, transp=0)
 plotshape(col, text=OL, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.green, textcolor=color.white, transp=0)
 plotshape(ccl, text=CL, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.green, textcolor=color.white, transp=0)
+
+plotshape(get_car(), text="AR", location=location.belowbar, style=shape.labelup,   size=size.small, color=color.purple, textcolor=color.white, transp=0)
