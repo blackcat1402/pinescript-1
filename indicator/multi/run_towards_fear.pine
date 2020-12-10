@@ -25,21 +25,50 @@ var CL = "CL" // Close Long. The signal to end a long trade.
 
 
 
-// Active Reversal. Indicating the change of direction we are trading. That is,
-// we go long or short multiple times.
-var AR = array.new_bool(1, false)
-get_car() =>
-    array.get(AR, 0)
-set_car(v) =>
-    array.set(AR, 0, v)
+// Current Cycle. The cycle of the current trade. Either OS, CS, OL or CL.
+var CC = array.new_string(4, "")
 
-// Current Cycle. The cycle of the current trade. Either OS, CS, OL or CL. Note
-// that we start with the default value CL to go first with a short trade.
-var CC = array.new_string(1, CL)
-get_ccc() =>
-    array.get(CC, 0)
+emp_ccc() =>
+    nos = array.get(CC, 0) == ""
+    ncs = array.get(CC, 1) == ""
+    nol = array.get(CC, 2) == ""
+    ncl = array.get(CC, 3) == ""
+
+    nos and ncs and nol and ncl
+
+has_ccc(v) =>
+    has = false
+
+    if v == OS
+        has := array.get(CC, 0) == OS
+    if v == CS
+        has := array.get(CC, 1) == CS
+    if v == OL
+        has := array.get(CC, 2) == OL
+    if v == CL
+        has := array.get(CC, 3) == CL
+
+    has
+
+rem_ccc(v) =>
+    if v == OS
+        array.set(CC, 0, "")
+    if v == CS
+        array.set(CC, 1, "")
+    if v == OL
+        array.set(CC, 2, "")
+    if v == CL
+        array.set(CC, 3, "")
+
 set_ccc(v) =>
-    array.set(CC, 0, v)
+    if v == OS
+        array.set(CC, 0, v)
+    if v == CS
+        array.set(CC, 1, v)
+    if v == OL
+        array.set(CC, 2, v)
+    if v == CL
+        array.set(CC, 3, v)
 
 // First Price. The entry price of our current trade. Based on this price we
 // decide when to take profit and when to move on.
@@ -55,9 +84,8 @@ set_cfp(v) =>
 
 
 
-rtp = input(title="RTF Take Profit",     type=input.float,   defval=0.5, minval=0.1, step=0.1)
-rar = input(title="RTF Active Reversal", type=input.float,   defval=0.3, minval=0.1, step=0.1)
-hrb = input(title="HPI Recent Bar",      type=input.integer, defval=50,  minval=1,   step=1  )
+rtp = input(title="RTF Take Profit",     type=input.float,   defval=0.4, minval=0.1, step=0.1)
+hrb = input(title="HPI Recent Bar",      type=input.integer, defval=10,  minval=1,   step=1  )
 
 
 
@@ -125,29 +153,55 @@ new_ccl() =>
 
 
 
-ccs = get_ccc() == OS and new_ccs() ? true : false
-cos = get_ccc() == CS and new_cos() ? true : false
-ccl = get_ccc() == OL and new_ccl() ? true : false
-col = get_ccc() == CL and new_col() ? true : false
+cos = emp_ccc() or (not has_ccc(OL) and  has_ccc(CS)                 and not has_ccc(OS) and new_cos()) ? true : false
+ccs =                                   (has_ccc(OS) or has_ccc(OL)) and not has_ccc(CS) and new_ccs()  ? true : false
+col =               not has_ccc(OS) and  has_ccc(CL)                 and not has_ccc(OL) and new_col()  ? true : false
+ccl =                                   (has_ccc(OL) or has_ccc(OS)) and not has_ccc(CL) and new_ccl()  ? true : false
 
 
 
 // -------------------------------------------------------------------------- //
 
 
-// On any given cycle change we track the current cycle globally so that we
-// always know in which cycle the current trade is in, if any. Note there might
-// be no active trades for some time.
-set_ccc(get_ccc() == OS and ccs ? CS : get_ccc())
-set_ccc(get_ccc() == CS and cos ? OS : get_ccc())
-set_ccc(get_ccc() == OL and ccl ? CL : get_ccc())
-set_ccc(get_ccc() == CL and col ? OL : get_ccc())
+
+if has_ccc(OS) and not ccs and ccl
+    ccs := true
+    col := true
+    ccl := false
+
+if has_ccc(OL) and not ccl and ccs
+    ccl := true
+    cos := true
+    ccs := false
 
 
-if cos and not col
-    set_cfp(close)
 
-if col and not cos
+// -------------------------------------------------------------------------- //
+
+
+
+set_ccc(cos ? OS : "")
+set_ccc(ccs ? CS : "")
+set_ccc(col ? OL : "")
+set_ccc(ccl ? CL : "")
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+rem_ccc(cos ? CS : ""), rem_ccc(cos ? CL : "")
+rem_ccc(ccs ? OS : "")
+rem_ccc(col ? CL : ""), rem_ccc(col ? CS : "")
+rem_ccc(ccl ? OL : "")
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+if cos or col
     set_cfp(close)
 
 
@@ -160,5 +214,3 @@ plotshape(cos, text=OS, location=location.abovebar, style=shape.labeldown, size=
 plotshape(ccs, text=CS, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.red,   textcolor=color.white, transp=0)
 plotshape(col, text=OL, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.green, textcolor=color.white, transp=0)
 plotshape(ccl, text=CL, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.green, textcolor=color.white, transp=0)
-
-plotshape(get_car(), text="AR", location=location.belowbar, style=shape.labelup,   size=size.small, color=color.purple, textcolor=color.white, transp=0)
