@@ -1,2 +1,3 @@
 # pinescript
-collection of pine scripts for trading bot automation
+
+Collection of pine scripts for trading bot automation.
