@@ -19,6 +19,9 @@ var CS = "CS" // Close Short. The signal to end a short trade.
 var OL = "OL" // Open Long. The signal to start a long trade.
 var CL = "CL" // Close Long. The signal to end a long trade.
 
+var DS = "DS" // Direction Short.
+var DL = "DL" // Direction Long.
+
 
 
 // -------------------------------------------------------------------------- //
@@ -50,6 +53,20 @@ has_ccc(v) =>
 
     has
 
+onl_ccc(v) =>
+    has = false
+
+    if v == OS
+        has := array.get(CC, 0) == OS and array.get(CC, 1) == "" and array.get(CC, 2) == "" and array.get(CC, 3) == ""
+    if v == CS
+        has := array.get(CC, 0) == "" and array.get(CC, 1) == CS and array.get(CC, 2) == "" and array.get(CC, 3) == ""
+    if v == OL
+        has := array.get(CC, 0) == "" and array.get(CC, 1) == "" and array.get(CC, 2) == OL and array.get(CC, 3) == ""
+    if v == CL
+        has := array.get(CC, 0) == "" and array.get(CC, 1) == "" and array.get(CC, 2) == "" and array.get(CC, 3) == CL
+
+    has
+
 rem_ccc(v) =>
     if v == OS
         array.set(CC, 0, "")
@@ -77,6 +94,18 @@ get_cfp() =>
     array.get(FP, 0)
 set_cfp(v) =>
     array.set(FP, 0, v)
+
+// Preferred Direction.
+var PD = array.new_string(1, "")
+
+get_cpd() =>
+    array.get(PD, 0)
+
+has_cpd(v) =>
+    array.get(PD, 0) == v
+
+set_cpd(v) =>
+    array.set(PD, 0, v)
 
 
 
@@ -123,6 +152,20 @@ new_lpi(hrb) =>
 
 
 
+// preferred direction short
+new_pds() =>
+    new_hpi(hrb * 2)
+
+// preferred direction long
+new_pdl() =>
+    new_lpi(hrb * 2)
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
 // new_cos returns a signal to open a short position. This signals the beginning
 // of a trade aiming to profit from downward trends. After opening a short
 // position we wait for the close short signal. Here cos means cycle open short.
@@ -153,64 +196,139 @@ new_ccl() =>
 
 
 
-cos = emp_ccc() or (not has_ccc(OL) and  has_ccc(CS)                 and not has_ccc(OS) and new_cos()) ? true : false
-ccs =                                   (has_ccc(OS) or has_ccc(OL)) and not has_ccc(CS) and new_ccs()  ? true : false
-col =               not has_ccc(OS) and  has_ccc(CL)                 and not has_ccc(OL) and new_col()  ? true : false
-ccl =                                   (has_ccc(OL) or has_ccc(OS)) and not has_ccc(CL) and new_ccl()  ? true : false
+new_cyc() =>
+    cos = new_cos()
+    ccs = new_ccs()
+    col = new_col()
+    ccl = new_ccl()
 
+    if emp_ccc()
+        if cos
+            set_ccc(OS)
+            rem_ccc(CS)
+            rem_ccc(OL)
+            rem_ccc(CL)
+
+            cos := true
+            ccs := false
+            col := false
+            ccl := false
+
+        if not cos and (ccs or col or ccl)
+            cos := false
+            ccs := false
+            col := false
+            ccl := false
+
+    else
+        if onl_ccc(OS)
+            if cos
+                cos := false
+                ccs := false
+                col := false
+                ccl := false
+
+            if ccs
+                rem_ccc(OS)
+                set_ccc(CS)
+                rem_ccc(OL)
+                rem_ccc(CL)
+
+                cos := false
+                ccs := true
+                col := false
+                ccl := false
+
+            if col
+                cos := false
+                ccs := false
+                col := false
+                ccl := false
+
+            if ccl
+                set_ccc(OS)
+                set_ccc(CS)
+                rem_ccc(OL)
+                rem_ccc(CL)
+
+                cos := true
+                ccs := true
+                col := false
+                ccl := false
+
+        else
+            if onl_ccc(CS)
+                if cos
+                    set_ccc(OS)
+                    rem_ccc(CS)
+                    rem_ccc(OL)
+                    rem_ccc(CL)
+
+                    cos := true
+                    ccs := false
+                    col := false
+                    ccl := false
+
+                if ccs
+                    cos := false
+                    ccs := false
+                    col := false
+                    ccl := false
+
+                if col
+                    cos := false
+                    ccs := false
+                    col := false
+                    ccl := false
+
+                if ccl
+                    cos := false
+                    ccs := false
+                    col := false
+                    ccl := false
+
+            else
+                if has_ccc(CS) and has_ccc(OS)
+                    set_ccc(OS)
+                    rem_ccc(CS)
+                    rem_ccc(OL)
+                    rem_ccc(CL)
+
+                    cos := false
+                    ccs := false
+                    col := false
+                    ccl := false
+
+    [cos, ccs, col, ccl]
 
 
 // -------------------------------------------------------------------------- //
 
 
 
-if has_ccc(OS) and not ccs and ccl
-    ccs := true
-    col := true
-    ccl := false
-
-if has_ccc(OL) and not ccl and ccs
-    ccl := true
-    cos := true
-    ccs := false
-
-
-
-// -------------------------------------------------------------------------- //
-
-
-
-set_ccc(cos ? OS : "")
-set_ccc(ccs ? CS : "")
-set_ccc(col ? OL : "")
-set_ccc(ccl ? CL : "")
-
-
-
-// -------------------------------------------------------------------------- //
-
-
-rem_ccc(cos ? CS : ""), rem_ccc(cos ? CL : "")
-rem_ccc(ccs ? OS : "")
-rem_ccc(col ? CL : ""), rem_ccc(col ? CS : "")
-rem_ccc(ccl ? OL : "")
-
-
-
-// -------------------------------------------------------------------------- //
-
-
+[cos, ccs, col, ccl] = new_cyc()
 
 if cos or col
     set_cfp(close)
 
+if new_pds()
+    set_cpd(DS)
+
+if new_pdl()
+    set_cpd(DL)
+
 
 
 // -------------------------------------------------------------------------- //
 
 
 
-plotshape(cos, text=OS, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.red,   textcolor=color.white, transp=0)
-plotshape(ccs, text=CS, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.red,   textcolor=color.white, transp=0)
-plotshape(col, text=OL, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.green, textcolor=color.white, transp=0)
-plotshape(ccl, text=CL, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.green, textcolor=color.white, transp=0)
+plotshape(cos, text=OS, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.red,   textcolor=color.white, transp=50)
+plotshape(ccs, text=CS, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.red,   textcolor=color.white, transp=50)
+plotshape(col, text=OL, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.green, textcolor=color.white, transp=50)
+plotshape(ccl, text=CL, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.green, textcolor=color.white, transp=50)
+
+// plotshape(has_ccc(OS), text=OS, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.red,   textcolor=color.white, transp=50)
+// plotshape(has_ccc(CS), text=CS, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.red,   textcolor=color.white, transp=50)
+// plotshape(has_ccc(OL), text=OL, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.green, textcolor=color.white, transp=50)
+// plotshape(has_ccc(CL), text=CL, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.green, textcolor=color.white, transp=50)
