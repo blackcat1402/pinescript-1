@@ -107,6 +107,18 @@ has_cpd(v) =>
 set_cpd(v) =>
     array.set(PD, 0, v)
 
+// Debug Flag.
+var DF = array.new_int(1, 0)
+
+get_cdf() =>
+    array.get(DF, 0)
+
+has_cdf(v) =>
+    array.get(DF, 0) == v
+
+set_cdf(v) =>
+    array.set(DF, 0, v)
+
 
 
 // -------------------------------------------------------------------------- //
@@ -214,19 +226,35 @@ new_cyc() =>
             col := false
             ccl := false
 
+            set_cdf(1)
+
         if not cos and (ccs or col or ccl)
+            rem_ccc(OS)
+            rem_ccc(CS)
+            rem_ccc(OL)
+            rem_ccc(CL)
+
             cos := false
             ccs := false
             col := false
             ccl := false
 
+            set_cdf(2)
+
     else
         if onl_ccc(OS)
             if cos
+                set_ccc(OS)
+                rem_ccc(CS)
+                rem_ccc(OL)
+                rem_ccc(CL)
+
                 cos := false
                 ccs := false
                 col := false
                 ccl := false
+
+                set_cdf(3)
 
             if ccs
                 rem_ccc(OS)
@@ -239,22 +267,47 @@ new_cyc() =>
                 col := false
                 ccl := false
 
+                set_cdf(4)
+
             if col
+                set_ccc(OS)
+                rem_ccc(CS)
+                rem_ccc(OL)
+                rem_ccc(CL)
+
                 cos := false
                 ccs := false
                 col := false
                 ccl := false
 
-            if ccl
-                set_ccc(OS)
-                set_ccc(CS)
-                rem_ccc(OL)
-                rem_ccc(CL)
+                set_cdf(5)
 
-                cos := true
-                ccs := true
-                col := false
-                ccl := false
+            if ccl
+                if has_cpd(DS)
+                    set_ccc(OS)
+                    rem_ccc(CS)
+                    rem_ccc(OL)
+                    rem_ccc(CL)
+
+                    cos := true
+                    ccs := true
+                    col := false
+                    ccl := false
+
+                    set_cdf(6)
+
+                if has_cpd(DL)
+                    rem_ccc(OS)
+                    rem_ccc(CS)
+                    set_ccc(OL)
+                    rem_ccc(CL)
+
+                    cos := false
+                    ccs := true
+                    col := true
+                    ccl := false
+
+                    set_cdf(7)
 
         else
             if onl_ccc(CS)
@@ -269,28 +322,11 @@ new_cyc() =>
                     col := false
                     ccl := false
 
+                    set_cdf(8)
+
                 if ccs
-                    cos := false
-                    ccs := false
-                    col := false
-                    ccl := false
-
-                if col
-                    cos := false
-                    ccs := false
-                    col := false
-                    ccl := false
-
-                if ccl
-                    cos := false
-                    ccs := false
-                    col := false
-                    ccl := false
-
-            else
-                if has_ccc(CS) and has_ccc(OS)
-                    set_ccc(OS)
-                    rem_ccc(CS)
+                    rem_ccc(OS)
+                    set_ccc(CS)
                     rem_ccc(OL)
                     rem_ccc(CL)
 
@@ -298,6 +334,130 @@ new_cyc() =>
                     ccs := false
                     col := false
                     ccl := false
+
+                    set_cdf(9)
+
+                if col
+                    rem_ccc(OS)
+                    set_ccc(CS)
+                    rem_ccc(OL)
+                    rem_ccc(CL)
+
+                    cos := false
+                    ccs := false
+                    col := false
+                    ccl := false
+
+                    set_cdf(10)
+
+                if ccl
+                    rem_ccc(OS)
+                    set_ccc(CS)
+                    rem_ccc(OL)
+                    rem_ccc(CL)
+
+                    cos := false
+                    ccs := false
+                    col := false
+                    ccl := false
+
+                    set_cdf(11)
+
+            else
+                if has_ccc(CS) and has_ccc(OL)
+                    rem_ccc(OS)
+                    rem_ccc(CS)
+                    set_ccc(OL)
+                    rem_ccc(CL)
+
+                    cos := false
+                    ccs := false
+                    col := false
+                    ccl := false
+
+                    set_cdf(12)
+
+                else
+                    if onl_ccc(OL)
+                        if cos
+                            rem_ccc(OS)
+                            rem_ccc(CS)
+                            set_ccc(OL)
+                            rem_ccc(CL)
+
+                            cos := false
+                            ccs := false
+                            col := false
+                            ccl := false
+
+                            set_cdf(13)
+
+                        if ccs
+                            rem_ccc(OS)
+                            rem_ccc(CS)
+                            rem_ccc(OL)
+                            set_ccc(CL)
+
+                            cos := false
+                            ccs := false
+                            col := false
+                            ccl := true
+
+                            set_cdf(14)
+
+                        if col
+                            rem_ccc(OS)
+                            rem_ccc(CS)
+                            set_ccc(OL)
+                            rem_ccc(CL)
+
+                            cos := false
+                            ccs := false
+                            col := false
+                            ccl := false
+
+                            set_cdf(15)
+
+                        if ccl
+                            rem_ccc(OS)
+                            rem_ccc(CS)
+                            rem_ccc(OL)
+                            set_ccc(CL)
+
+                            cos := false
+                            ccs := false
+                            col := false
+                            ccl := true
+
+                            set_cdf(16)
+
+                    else
+                        if onl_ccc(CL)
+                            if has_cpd(DS)
+                                set_ccc(OS)
+                                rem_ccc(CS)
+                                rem_ccc(OL)
+                                rem_ccc(CL)
+
+                                cos := true
+                                ccs := false
+                                col := false
+                                ccl := false
+
+                                set_cdf(17)
+
+                            if has_cpd(DL)
+                                rem_ccc(OS)
+                                rem_ccc(CS)
+                                set_ccc(OL)
+                                rem_ccc(CL)
+
+                                cos := false
+                                ccs := false
+                                col := true
+                                ccl := false
+
+                                set_cdf(18)
 
     [cos, ccs, col, ccl]
 
@@ -323,12 +483,34 @@ if new_pdl()
 
 
 
-plotshape(cos, text=OS, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.red,   textcolor=color.white, transp=50)
-plotshape(ccs, text=CS, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.red,   textcolor=color.white, transp=50)
-plotshape(col, text=OL, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.green, textcolor=color.white, transp=50)
-plotshape(ccl, text=CL, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.green, textcolor=color.white, transp=50)
+// plotshape(get_cdf() ==  1, text="DEBUG  1", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() ==  2, text="DEBUG  2", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() ==  3, text="DEBUG  3", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() ==  4, text="DEBUG  4", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() ==  5, text="DEBUG  5", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() ==  6, text="DEBUG  6", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() ==  7, text="DEBUG  7", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() ==  8, text="DEBUG  8", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() ==  9, text="DEBUG  9", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() == 10, text="DEBUG 10", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() == 11, text="DEBUG 11", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() == 12, text="DEBUG 12", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() == 13, text="DEBUG 13", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() == 14, text="DEBUG 14", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() == 15, text="DEBUG 15", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() == 16, text="DEBUG 16", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() == 17, text="DEBUG 17", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() == 18, text="DEBUG 18", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() == 19, text="DEBUG 19", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(get_cdf() == 20, text="DEBUG 20", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
 
-// plotshape(has_ccc(OS), text=OS, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.red,   textcolor=color.white, transp=50)
-// plotshape(has_ccc(CS), text=CS, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.red,   textcolor=color.white, transp=50)
-// plotshape(has_ccc(OL), text=OL, location=location.abovebar, style=shape.labeldown, size=size.small, color=color.green, textcolor=color.white, transp=50)
-// plotshape(has_ccc(CL), text=CL, location=location.belowbar, style=shape.labelup,   size=size.small, color=color.green, textcolor=color.white, transp=50)
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+plotshape(cos, text=OS, location=location.abovebar, style=shape.labeldown, size=size.small, color=#f44336, textcolor=color.white, transp=30)
+plotshape(ccs, text=CS, location=location.belowbar, style=shape.labelup,   size=size.small, color=#f44336, textcolor=color.white, transp=30)
+plotshape(col, text=OL, location=location.abovebar, style=shape.labeldown, size=size.small, color=#4caf50, textcolor=color.white, transp=30)
+plotshape(ccl, text=CL, location=location.belowbar, style=shape.labelup,   size=size.small, color=#4caf50, textcolor=color.white, transp=30)
