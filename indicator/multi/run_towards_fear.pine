@@ -14,16 +14,25 @@ study(title="RTF", shorttitle="RTF", overlay=true)
 
 
 
+var HR = #d32f2f // Hex Red. The red color for our color scheme indicating short trades.
+var HG = #388e3c // Hex Green. The green color for our color scheme indicating long trades.
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
 var OS = "OS" // Open Short. The signal to start a short trade.
 var CS = "CS" // Close Short. The signal to end a short trade.
 var OL = "OL" // Open Long. The signal to start a long trade.
 var CL = "CL" // Close Long. The signal to end a long trade.
 
-var DS = "DS" // Direction Short.
-var DL = "DL" // Direction Long.
+var DS = "DS" // Direction Short. Trading to win from falling prices.
+var DL = "DL" // Direction Long. Trading to win from rising prices.
 
-var HR = #d32f2f // Hex Red. The red color for our color scheme indicating short trades. 
-var HG = #388e3c // Hex Green. The green color for our color scheme indicating long trades. 
+var FP = "FP" // First Price. The entry price of our current trade.
+var LP = "LP" // Last Price. The exit price of our current trade.
 
 
 
@@ -96,27 +105,36 @@ set_ccc(v) =>
 
 
 
-// First Price. The entry price of our current trade. Based on this price we
-// decide when to take profit and when to move on.
-var FP = array.new_float(1, 0.0)
-get_cfp() =>
-    array.get(FP, 0)
-set_cfp(v) =>
-    array.set(FP, 0, v)
+// Trade Price. The entry price and exit price of our current trade. Based on
+// these prices and their delta we decide when to take profit and when to move
+// on.
+var TP = array.new_float(2, 0.0)
 
+get_ctp(v) =>
+    val = 0.0
 
+    if v == FP
+        val := array.get(TP, 0)
+    if v == LP
+        val := array.get(TP, 1)
 
-// -------------------------------------------------------------------------- //
+    val
 
+// gre_ctp returns the trade price delta for long directional trades. If the
+// result is greater zero it means the long trade made profit.
+gre_ctp() =>
+    array.get(TP, 1) - array.get(TP, 0)
 
+// les_ctp returns the trade price delta for short directional trades. If the
+// result is greater zero it means the short trade made profit.
+les_ctp() =>
+    array.get(TP, 0) - array.get(TP, 1)
 
-// Last Price. The exit price of our current trade. Based on this price we
-// decide which strategy to pursue with our next move.
-var LP = array.new_float(1, 0.0)
-get_clp() =>
-    array.get(LP, 0)
-set_clp(v) =>
-    array.set(LP, 0, v)
+set_ctp(v) =>
+    if v == FP
+        array.set(TP, 0, close)
+    if v == LP
+        array.set(TP, 1, close)
 
 
 
@@ -128,9 +146,6 @@ set_clp(v) =>
 // trade next. Available constants are DS for direction short and DL for
 // direction long.
 var PD = array.new_string(1, "")
-
-get_cpd() =>
-    array.get(PD, 0)
 
 has_cpd(v) =>
     array.get(PD, 0) == v
@@ -147,16 +162,59 @@ set_cpd(v) =>
 // Debug Flag. Only used for development. In complex decision trees we can print
 // labels based on the position the global was modified. This can help a great
 // deal figuring out why a certain trade was made.
-var DF = array.new_string(1, "")
-
-get_cdf() =>
-    array.get(DF, 0)
+var DF = array.new_string(10, "")
 
 has_cdf(v) =>
-    array.get(DF, 0) == v
+    has = false
+
+    if v == "1"
+        has := array.get(DF, 0) != ""
+    if v == "2"
+        has := array.get(DF, 1) != ""
+    if v == "3"
+        has := array.get(DF, 2) != ""
+    if v == "4"
+        has := array.get(DF, 3) != ""
+    if v == "5"
+        has := array.get(DF, 4) != ""
+    if v == "6"
+        has := array.get(DF, 5) != ""
+    if v == "7"
+        has := array.get(DF, 6) != ""
+    if v == "8"
+        has := array.get(DF, 7) != ""
+    if v == "9"
+        has := array.get(DF, 8) != ""
+    if v == "10"
+        has := array.get(DF, 9) != ""
+
+    has
 
 set_cdf(v) =>
-    array.set(DF, 0, v)
+    if v == "1"
+        array.set(DF, 0, v)
+    if v == "2"
+        array.set(DF, 1, v)
+    if v == "3"
+        array.set(DF, 2, v)
+    if v == "4"
+        array.set(DF, 3, v)
+    if v == "5"
+        array.set(DF, 4, v)
+    if v == "6"
+        array.set(DF, 5, v)
+    if v == "7"
+        array.set(DF, 6, v)
+    if v == "8"
+        array.set(DF, 7, v)
+    if v == "9"
+        array.set(DF, 8, v)
+    if v == "10"
+        array.set(DF, 9, v)
+
+// Note that we need to clear the array's content in order to work with a fresh
+// copy on each bar when the script is executed again.
+array.fill(DF, "")
 
 
 
@@ -229,7 +287,7 @@ new_cos() =>
 // trade aiming to profit from downward trends. After closing a short position
 // we wait for the open long signal. Here ccs means cycle close short.
 new_ccs() =>
-    100 - new_per(get_cfp(), close) >= rtp
+    100 - new_per(get_ctp(FP), close) >= rtp
 
 // new_col returns a signal to open a long position. This signals the beginning
 // of a trade aiming to profit from upward trends. After opening a long position
@@ -241,7 +299,7 @@ new_col() =>
 // trade aiming to profit from upward trends. After closing a long position we
 // wait for the open short signal. Here ccl means cycle close long.
 new_ccl() =>
-    100 - new_per(close, get_cfp()) >= rtp
+    100 - new_per(close, get_ctp(FP)) >= rtp
 
 
 
@@ -255,6 +313,8 @@ new_cyc() =>
     col = new_col()
     ccl = new_ccl()
 
+    cct = false
+
     if emp_ccc()
         if cos
             set_ccc(OS)
@@ -267,21 +327,9 @@ new_cyc() =>
             col := false
             ccl := false
 
+            cct := true
+
             set_cdf("1")
-
-        else
-            if ccs or col or ccl
-                rem_ccc(OS)
-                rem_ccc(CS)
-                rem_ccc(OL)
-                rem_ccc(CL)
-
-                cos := false
-                ccs := false
-                col := false
-                ccl := false
-
-                set_cdf("2")
 
     else
         if onl_ccc(OS)
@@ -297,9 +345,11 @@ new_cyc() =>
                     col := false
                     ccl := false
 
-                    set_cdf("3")
+                    cct := true
 
-                if has_cpd(DL)
+                    set_cdf("2")
+
+                else if has_cpd(DL)
                     rem_ccc(OS)
                     rem_ccc(CS)
                     set_ccc(OL)
@@ -310,21 +360,9 @@ new_cyc() =>
                     col := true
                     ccl := false
 
-                    set_cdf("4")
+                    cct := true
 
-            else
-                if cos or col
-                    set_ccc(OS)
-                    rem_ccc(CS)
-                    rem_ccc(OL)
-                    rem_ccc(CL)
-
-                    cos := false
-                    ccs := false
-                    col := false
-                    ccl := false
-
-                    set_cdf("5")
+                    set_cdf("3")
 
         else
             if onl_ccc(CS)
@@ -340,9 +378,11 @@ new_cyc() =>
                         col := false
                         ccl := false
 
-                        set_cdf("6")
+                        cct := true
 
-                    if has_cpd(DL)
+                        set_cdf("4")
+
+                    else if has_cpd(DL)
                         rem_ccc(OS)
                         rem_ccc(CS)
                         set_ccc(OL)
@@ -353,21 +393,9 @@ new_cyc() =>
                         col := true
                         ccl := false
 
-                        set_cdf("7")
+                        cct := true
 
-                else
-                    if ccs or ccl
-                        rem_ccc(OS)
-                        set_ccc(CS)
-                        rem_ccc(OL)
-                        rem_ccc(CL)
-
-                        cos := false
-                        ccs := false
-                        col := false
-                        ccl := false
-
-                        set_cdf("8")
+                        set_cdf("5")
 
             else
                 if onl_ccc(OL)
@@ -383,9 +411,11 @@ new_cyc() =>
                             col := false
                             ccl := true
 
-                            set_cdf("9")
+                            cct := true
 
-                        if has_cpd(DL)
+                            set_cdf("6")
+
+                        else if has_cpd(DL)
                             rem_ccc(OS)
                             rem_ccc(CS)
                             set_ccc(OL)
@@ -396,21 +426,9 @@ new_cyc() =>
                             col := true
                             ccl := true
 
-                            set_cdf("10")
+                            cct := true
 
-                    else
-                        if cos or col
-                            rem_ccc(OS)
-                            rem_ccc(CS)
-                            set_ccc(OL)
-                            rem_ccc(CL)
-
-                            cos := false
-                            ccs := false
-                            col := false
-                            ccl := false
-
-                            set_cdf("11")
+                            set_cdf("7")
 
                 else
                     if onl_ccc(CL)
@@ -426,9 +444,11 @@ new_cyc() =>
                                 col := false
                                 ccl := false
 
-                                set_cdf("12")
+                                cct := true
 
-                            if has_cpd(DL)
+                                set_cdf("8")
+
+                            else if has_cpd(DL)
                                 rem_ccc(OS)
                                 rem_ccc(CS)
                                 set_ccc(OL)
@@ -439,21 +459,17 @@ new_cyc() =>
                                 col := true
                                 ccl := false
 
-                                set_cdf("13")
+                                cct := true
 
-                        else
-                            if ccs or ccl
-                                rem_ccc(OS)
-                                rem_ccc(CS)
-                                rem_ccc(OL)
-                                set_ccc(CL)
+                                set_cdf("9")
 
-                                cos := false
-                                ccs := false
-                                col := false
-                                ccl := false
+    if not cct
+        cos := false
+        ccs := false
+        col := false
+        ccl := false
 
-                                set_cdf("14")
+        set_cdf("10")
 
     [cos, ccs, col, ccl]
 
@@ -471,10 +487,10 @@ new_cyc() =>
 
 
 if cos or col
-    set_cfp(close)
+    set_ctp(FP)
 
 if ccs or ccl
-    set_clp(close)
+    set_ctp(LP)
 
 
 
@@ -494,8 +510,19 @@ if new_pdl()
 
 
 
-barcolor(ccs and get_cfp() - get_clp() > 0 ? HR : na)
-barcolor(ccl and get_clp() - get_cfp() > 0 ? HG : na)
+// barcolor(ccs and les_ctp() < 0 ? HR : na)
+// barcolor(ccl and gre_ctp() < 0 ? HG : na)
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+// plotshape(has_ccc(OS), text="HAS OS", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(has_ccc(CS), text="HAS CS", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(has_ccc(OL), text="HAS OL", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(has_ccc(CL), text="HAS CL", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
 
 
 
@@ -513,10 +540,6 @@ barcolor(ccl and get_clp() - get_cfp() > 0 ? HG : na)
 // plotshape(has_cdf( "8"), text="DEBUG  8", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
 // plotshape(has_cdf( "9"), text="DEBUG  9", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
 // plotshape(has_cdf("10"), text="DEBUG 10", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
-// plotshape(has_cdf("11"), text="DEBUG 11", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
-// plotshape(has_cdf("12"), text="DEBUG 12", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
-// plotshape(has_cdf("13"), text="DEBUG 13", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
-// plotshape(has_cdf("14"), text="DEBUG 14", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
 
 
 
