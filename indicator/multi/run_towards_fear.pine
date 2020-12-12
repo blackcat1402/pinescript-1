@@ -105,60 +105,6 @@ set_ccc(v) =>
 
 
 
-// Trade Price. The entry price and exit price of our current trade. Based on
-// these prices and their delta we decide when to take profit and when to move
-// on.
-var TP = array.new_float(2, 0.0)
-
-get_ctp(v) =>
-    val = 0.0
-
-    if v == FP
-        val := array.get(TP, 0)
-    if v == LP
-        val := array.get(TP, 1)
-
-    val
-
-// gre_ctp returns the trade price delta for long directional trades. If the
-// result is greater zero it means the long trade made profit.
-gre_ctp() =>
-    array.get(TP, 1) - array.get(TP, 0)
-
-// les_ctp returns the trade price delta for short directional trades. If the
-// result is greater zero it means the short trade made profit.
-les_ctp() =>
-    array.get(TP, 0) - array.get(TP, 1)
-
-set_ctp(v) =>
-    if v == FP
-        array.set(TP, 0, close)
-    if v == LP
-        array.set(TP, 1, close)
-
-
-
-// -------------------------------------------------------------------------- //
-
-
-
-// Preferred Direction. This global helps to identify in which direction to
-// trade next. Available constants are DS for direction short and DL for
-// direction long.
-var PD = array.new_string(1, "")
-
-has_cpd(v) =>
-    array.get(PD, 0) == v
-
-set_cpd(v) =>
-    array.set(PD, 0, v)
-
-
-
-// -------------------------------------------------------------------------- //
-
-
-
 // Debug Flag. Only used for development. In complex decision trees we can print
 // labels based on the position the global was modified. This can help a great
 // deal figuring out why a certain trade was made.
@@ -215,6 +161,81 @@ set_cdf(v) =>
 // Note that we need to clear the array's content in order to work with a fresh
 // copy on each bar when the script is executed again.
 array.fill(DF, "")
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+// Failure Count.
+var FC = array.new_int(1, 0)
+
+get_cfc() =>
+    array.get(FC, 0)
+
+inc_cfc() =>
+    array.set(FC, 0, array.get(FC, 0) + 1)
+
+res_cfc() =>
+    array.set(FC, 0, 0)
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+// Preferred Direction. This global helps to identify in which direction to
+// trade next. Available constants are DS for direction short and DL for
+// direction long. Note that we start out with direction short.
+var PD = array.new_string(1, DS)
+
+has_cpd(v) =>
+    array.get(PD, 0) == v
+
+set_cpd(v) =>
+    if v == DS
+        array.set(PD, 0, v)
+    if v == DL
+        array.set(PD, 0, v)
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+// Trade Price. The entry price and exit price of our current trade. Based on
+// these prices and their delta we decide when to take profit and when to move
+// on.
+var TP = array.new_float(2, 0.0)
+
+get_ctp(v) =>
+    val = 0.0
+
+    if v == FP
+        val := array.get(TP, 0)
+    if v == LP
+        val := array.get(TP, 1)
+
+    val
+
+// gre_ctp returns the trade price delta for long directional trades. If the
+// result is greater zero it means the long trade made profit.
+gre_ctp() =>
+    array.get(TP, 1) - array.get(TP, 0)
+
+// les_ctp returns the trade price delta for short directional trades. If the
+// result is greater zero it means the short trade made profit.
+les_ctp() =>
+    array.get(TP, 0) - array.get(TP, 1)
+
+set_ctp(v) =>
+    if v == FP
+        array.set(TP, 0, close)
+    if v == LP
+        array.set(TP, 1, close)
 
 
 
@@ -486,26 +507,20 @@ new_cyc() =>
 
 
 
-if ccs or ccl
-    set_ctp(LP)
-
-lfs = ccs and les_ctp() < 0 // Loss For Short.
-lfl = ccl and gre_ctp() < 0 // Loss For Long.
-
-if cos or col
-    set_ctp(FP)
+// It is super important to set the last price of the current trade first. This
+// allows us to calculate the profit or loss considering the sequential nature
+// of pine script execution. Only after the last price is tracked and the loss
+// statement is collected we can track the new first price of the next trade.
+// Here ffs means failure for short. Here ffl means failure for long.
 
 
 
-// -------------------------------------------------------------------------- //
+set_ctp(ccs or ccl ? LP : "")
 
+ffs = ccs and les_ctp() < 0 ? true : false
+ffl = ccl and gre_ctp() < 0 ? true : false
 
-
-if new_pds()
-    set_cpd(DS)
-
-if new_pdl()
-    set_cpd(DL)
+set_ctp(cos or col ? FP : "")
 
 
 
@@ -513,10 +528,43 @@ if new_pdl()
 
 
 
-// plotshape(has_ccc(OS), text="HAS OS", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
-// plotshape(has_ccc(CS), text="HAS CS", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
-// plotshape(has_ccc(OL), text="HAS OL", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
-// plotshape(has_ccc(CL), text="HAS CL", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// Here we make intentional direction changes in order to make better trade
+// decisions. That means to trade with the trend. At first we have an access
+// point for custom logic to dictate the trade direction. If this first attempt
+// fails we flip the direction. After the flip all trades should continue short
+// or long until a trade fails again. Only after this additional failure we
+// reset the failure count and start over with dynamic decision making.
+
+pds = new_pds()
+pdl = new_pdl()
+
+if ffs or ffl
+    inc_cfc()
+
+    if get_cfc() == 0
+        set_cpd(pds ? DS : "")
+        set_cpd(pdl ? DL : "")
+
+    if get_cfc() == 1
+        if has_cpd(DL)
+            set_cpd(DS)
+
+        else if has_cpd(DS)
+            set_cpd(DL)
+
+    if get_cfc() >= 2
+        res_cfc()
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+// plotshape(has_ccc(OS), text="DEBUG OS", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(has_ccc(CS), text="DEBUG CS", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(has_ccc(OL), text="DEBUG OL", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(has_ccc(CL), text="DEBUG CL", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
 
 
 
@@ -542,8 +590,8 @@ if new_pdl()
 
 
 plotshape(cos,             text=OS, location=location.abovebar, style=shape.circle, size=size.tiny, color=HR, textcolor=color.white, transp=30)
-plotshape(ccs and not lfs, text=CS, location=location.belowbar, style=shape.circle, size=size.tiny, color=HR, textcolor=color.white, transp=30)
-plotshape(ccs and     lfs, text=CS, location=location.belowbar, style=shape.xcross, size=size.tiny, color=HR, textcolor=color.white, transp=30)
+plotshape(ccs and not ffs, text=CS, location=location.belowbar, style=shape.circle, size=size.tiny, color=HR, textcolor=color.white, transp=30)
+plotshape(ccs and     ffs, text=CS, location=location.belowbar, style=shape.xcross, size=size.tiny, color=HR, textcolor=color.white, transp=30)
 plotshape(col,             text=OL, location=location.abovebar, style=shape.circle, size=size.tiny, color=HG, textcolor=color.white, transp=30)
-plotshape(ccl and not lfl, text=CL, location=location.belowbar, style=shape.circle, size=size.tiny, color=HG, textcolor=color.white, transp=30)
-plotshape(ccl and     lfl, text=CL, location=location.belowbar, style=shape.xcross, size=size.tiny, color=HG, textcolor=color.white, transp=30)
+plotshape(ccl and not ffl, text=CL, location=location.belowbar, style=shape.circle, size=size.tiny, color=HG, textcolor=color.white, transp=30)
+plotshape(ccl and     ffl, text=CL, location=location.belowbar, style=shape.xcross, size=size.tiny, color=HG, textcolor=color.white, transp=30)
