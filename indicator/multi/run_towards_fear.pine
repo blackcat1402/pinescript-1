@@ -486,11 +486,14 @@ new_cyc() =>
 
 
 
-if cos or col
-    set_ctp(FP)
-
 if ccs or ccl
     set_ctp(LP)
+
+lfs = ccs and les_ctp() < 0 // Loss For Short.
+lfl = ccl and gre_ctp() < 0 // Loss For Long.
+
+if cos or col
+    set_ctp(FP)
 
 
 
@@ -503,15 +506,6 @@ if new_pds()
 
 if new_pdl()
     set_cpd(DL)
-
-
-
-// -------------------------------------------------------------------------- //
-
-
-
-// barcolor(ccs and les_ctp() < 0 ? HR : na)
-// barcolor(ccl and gre_ctp() < 0 ? HG : na)
 
 
 
@@ -547,7 +541,9 @@ if new_pdl()
 
 
 
-plotshape(cos, text=OS, location=location.abovebar, style=shape.labeldown, size=size.small, color=HR, textcolor=color.white, transp=30)
-plotshape(ccs, text=CS, location=location.belowbar, style=shape.labelup,   size=size.small, color=HR, textcolor=color.white, transp=30)
-plotshape(col, text=OL, location=location.abovebar, style=shape.labeldown, size=size.small, color=HG, textcolor=color.white, transp=30)
-plotshape(ccl, text=CL, location=location.belowbar, style=shape.labelup,   size=size.small, color=HG, textcolor=color.white, transp=30)
+plotshape(cos,             text=OS, location=location.abovebar, style=shape.circle, size=size.tiny, color=HR, textcolor=color.white, transp=30)
+plotshape(ccs and not lfs, text=CS, location=location.belowbar, style=shape.circle, size=size.tiny, color=HR, textcolor=color.white, transp=30)
+plotshape(ccs and     lfs, text=CS, location=location.belowbar, style=shape.xcross, size=size.tiny, color=HR, textcolor=color.white, transp=30)
+plotshape(col,             text=OL, location=location.abovebar, style=shape.circle, size=size.tiny, color=HG, textcolor=color.white, transp=30)
+plotshape(ccl and not lfl, text=CL, location=location.belowbar, style=shape.circle, size=size.tiny, color=HG, textcolor=color.white, transp=30)
+plotshape(ccl and     lfl, text=CL, location=location.belowbar, style=shape.xcross, size=size.tiny, color=HG, textcolor=color.white, transp=30)
