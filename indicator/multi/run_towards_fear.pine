@@ -14,10 +14,13 @@ study(title="RTF Indicator", overlay=true)
 
 
 
-rlt = input(title="RTF Loss Tolerance", type=input.float,   defval=0.5, minval=0.1, step=0.1)
-rpb = input(title="RTF Pause Bar",      type=input.integer, defval=10,  minval=1,   step=1  )
-rtp = input(title="RTF Take Profit",    type=input.float,   defval=0.5, minval=0.1, step=0.1)
-hrb = input(title="HPI Recent Bar",     type=input.integer, defval=200, minval=1,   step=1  )
+bbl = input(title="BBI Band Length",    type=input.integer, defval=26,   minval=1,    step=1  )
+bbs = input(title="BBI Band Stddev",    type=input.float,   defval=2.00, minval=0.1,  step=0.1)
+bpp = input(title="BBI Pivot Point",    type=input.float,   defval=20,   minval=0.01, step=1  )
+hrb = input(title="HPI Recent Bar",     type=input.integer, defval=200,  minval=1,    step=1  )
+rlt = input(title="RTF Loss Tolerance", type=input.float,   defval=0.6,  minval=0.1,  step=0.1)
+rpb = input(title="RTF Pause Bar",      type=input.integer, defval=11,   minval=1,    step=1  )
+rtp = input(title="RTF Take Profit",    type=input.float,   defval=0.5,  minval=0.1,  step=0.1)
 
 
 
@@ -258,6 +261,51 @@ new_per(abs, fra) =>
 
 
 
+// new_bbu returns the upper bollinger band based on the length given by bbl and
+// the standard deviation given by bbs. Here bbu means bollinger band upper.
+new_bbu(src, bbl, bbs) =>
+    sma(src, bbl) + bbs * stdev(src, bbl)
+
+new_bbi(src, bbl, bbs) =>
+    bbu = new_bbu(src, bbl, bbs)
+
+    cou = 0
+    bac = 8
+
+    for i = 0 to bac
+        cou := high[i] > bbu[i] and bbu[i] > low[i] ? cou + 1 : cou
+
+    new_per(bac, cou) > bpp and not (high[0] > bbu[0] and bbu[0] > low[0])
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+// new_rsb returns the relative strength indicator for the current bar, based on
+// the running moving average. Here rsb means relative strength bar.
+new_rsb(src, rsl) =>
+    upw = rma( max(change(src), 0), rsl)
+    dow = rma(-min(change(src), 0), rsl)
+
+    dow == 0 ? 100 : upw == 0 ? 0 : 100 - (100 / (1 + upw / dow))
+
+// new_rsi returns the relative strength indicator for overbought price peaks.
+new_rsi(src) =>
+    one = new_rsb(src, 120)[1] < 57 and new_rsb(src, 120)[0] > 57
+    two = new_rsb(src, 50 )[1] < 65 and new_rsb(src, 50 )[0] > 65
+    thr = new_rsb(src, 30 )[1] < 70 and new_rsb(src, 30 )[0] > 70
+    fou = new_rsb(src, 17 )[1] < 63 and new_rsb(src, 17 )[0] > 63
+
+    one or two or thr or fou
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
 // new_hpi returns a high price indicator for the most recent bars since hrb.
 // Here hpi means high price indicator.
 new_hpi(hrb) =>
@@ -290,7 +338,17 @@ new_lfl() =>
 // of a trade aiming to profit from downward trends. After opening a short
 // position we wait for the close short signal. Here cos means cycle open short.
 new_cos() =>
-    new_hpi(hrb) or new_hpi(hrb / 2)
+    src = close
+
+    bbi = new_bbi(src, bbl, bbs)
+    hpi = new_hpi(hrb) or new_hpi(hrb / 2)
+    rsi = new_rsi(src)
+
+    bhi = (bbi[0] and hpi[0]) or (bbi[0] and hpi[1]) or (bbi[1] and hpi[0])
+    bri = (bbi[0] and rsi[0]) or (bbi[0] and rsi[1]) or (bbi[1] and rsi[0])
+    hri = (hpi[0] and rsi[0]) or (hpi[0] and rsi[1]) or (hpi[1] and rsi[0])
+
+    bhi or bri or hri
 
 // new_ccs returns a signal to close a short position. This signals the end of a
 // trade aiming to profit from downward trends. After closing a short position
