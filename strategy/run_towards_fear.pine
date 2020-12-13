@@ -6,7 +6,7 @@
 
 
 
-study(title="RTF Indicator", overlay=true)
+strategy(title="RTF Strategy", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=5, initial_capital=1000)
 
 
 
@@ -252,8 +252,8 @@ set_ctp(v) =>
 
 
 rtp = input(title="RTF Take Profit",    type=input.float,   defval=0.3, minval=0.1, step=0.1)
-rlt = input(title="RTF Loss Tolerance", type=input.float,   defval=0.9, minval=0.1, step=0.1)
-hrb = input(title="HPI Recent Bar",     type=input.integer, defval=50,  minval=1,   step=1  )
+rlt = input(title="RTF Loss Tolerance", type=input.float,   defval=0.4, minval=0.1, step=0.1)
+hrb = input(title="HPI Recent Bar",     type=input.integer, defval=35,  minval=1,   step=1  )
 
 
 
@@ -636,9 +636,5 @@ if ffs or ffl
 
 
 
-plotshape(cos,             text=OS, location=location.abovebar, style=shape.circle, size=size.tiny, color=HR, textcolor=color.white, transp=30)
-plotshape(ccs and not ffs, text=CS, location=location.belowbar, style=shape.circle, size=size.tiny, color=HR, textcolor=color.white, transp=30)
-plotshape(ccs and     ffs, text=CS, location=location.belowbar, style=shape.xcross, size=size.tiny, color=HR, textcolor=color.white, transp=30)
-plotshape(col,             text=OL, location=location.abovebar, style=shape.circle, size=size.tiny, color=HG, textcolor=color.white, transp=30)
-plotshape(ccl and not ffl, text=CL, location=location.belowbar, style=shape.circle, size=size.tiny, color=HG, textcolor=color.white, transp=30)
-plotshape(ccl and     ffl, text=CL, location=location.belowbar, style=shape.xcross, size=size.tiny, color=HG, textcolor=color.white, transp=30)
+strategy.entry(id=OS, long=false, qty=1, when=cos), strategy.exit(id=CS, from_entry=OS, limit=rtp, when=ccs)
+strategy.entry(id=OL, long=true,  qty=1, when=col), strategy.exit(id=CL, from_entry=OL, limit=rtp, when=ccl)
