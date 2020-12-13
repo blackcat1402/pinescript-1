@@ -108,7 +108,7 @@ set_ccc(v) =>
 // Debug Flag. Only used for development. In complex decision trees we can print
 // labels based on the position the global was modified. This can help a great
 // deal figuring out why a certain trade was made.
-var DF = array.new_string(10, "")
+var DF = array.new_string(12, "")
 
 has_cdf(v) =>
     has = false
@@ -133,6 +133,10 @@ has_cdf(v) =>
         has := array.get(DF, 8) != ""
     if v == "10"
         has := array.get(DF, 9) != ""
+    if v == "11"
+        has := array.get(DF, 10) != ""
+    if v == "12"
+        has := array.get(DF, 11) != ""
 
     has
 
@@ -157,6 +161,10 @@ set_cdf(v) =>
         array.set(DF, 8, v)
     if v == "10"
         array.set(DF, 9, v)
+    if v == "11"
+        array.set(DF, 10, v)
+    if v == "12"
+        array.set(DF, 11, v)
 
 // Note that we need to clear the array's content in order to work with a fresh
 // copy on each bar when the script is executed again.
@@ -243,8 +251,9 @@ set_ctp(v) =>
 
 
 
-rtp = input(title="RTF Take Profit", type=input.float,   defval=0.4, minval=0.1, step=0.1)
-hrb = input(title="HPI Recent Bar",  type=input.integer, defval=10,  minval=1,   step=1  )
+rtp = input(title="RTF Take Profit",    type=input.float,   defval=0.3, minval=0.1, step=0.1)
+rlt = input(title="RTF Loss Tolerance", type=input.float,   defval=0.9, minval=0.1, step=0.1)
+hrb = input(title="HPI Recent Bar",     type=input.integer, defval=50,  minval=1,   step=1  )
 
 
 
@@ -308,7 +317,10 @@ new_cos() =>
 // trade aiming to profit from downward trends. After closing a short position
 // we wait for the open long signal. Here ccs means cycle close short.
 new_ccs() =>
-    100 - new_per(get_ctp(FP), close) >= rtp
+    pro = 100 - new_per(get_ctp(FP), close) >= rtp
+    los = 100 - new_per(close, get_ctp(FP)) >= rlt
+
+    pro or los
 
 // new_col returns a signal to open a long position. This signals the beginning
 // of a trade aiming to profit from upward trends. After opening a long position
@@ -320,7 +332,10 @@ new_col() =>
 // trade aiming to profit from upward trends. After closing a long position we
 // wait for the open short signal. Here ccl means cycle close long.
 new_ccl() =>
-    100 - new_per(close, get_ctp(FP)) >= rtp
+    pro = 100 - new_per(close, get_ctp(FP)) >= rtp
+    los = 100 - new_per(get_ctp(FP), close) >= rlt
+
+    pro or los
 
 
 
@@ -334,7 +349,7 @@ new_cyc() =>
     col = new_col()
     ccl = new_ccl()
 
-    cct = false
+    cct = false // Constant Cycle Tracked.
 
     if emp_ccc()
         if cos
@@ -354,7 +369,22 @@ new_cyc() =>
 
     else
         if onl_ccc(OS)
-            if ccs or ccl
+            if ccs and not ccl // success short trade
+                set_ccc(OS)
+                rem_ccc(CS)
+                rem_ccc(OL)
+                rem_ccc(CL)
+
+                cos := true
+                ccs := true
+                col := false
+                ccl := false
+
+                cct := true
+
+                set_cdf("2")
+
+            else if ccs and ccl // failure short trade
                 if has_cpd(DS)
                     set_ccc(OS)
                     rem_ccc(CS)
@@ -368,7 +398,7 @@ new_cyc() =>
 
                     cct := true
 
-                    set_cdf("2")
+                    set_cdf("3")
 
                 else if has_cpd(DL)
                     rem_ccc(OS)
@@ -383,7 +413,7 @@ new_cyc() =>
 
                     cct := true
 
-                    set_cdf("3")
+                    set_cdf("4")
 
         else
             if onl_ccc(CS)
@@ -401,7 +431,7 @@ new_cyc() =>
 
                         cct := true
 
-                        set_cdf("4")
+                        set_cdf("5")
 
                     else if has_cpd(DL)
                         rem_ccc(OS)
@@ -416,11 +446,26 @@ new_cyc() =>
 
                         cct := true
 
-                        set_cdf("5")
+                        set_cdf("6")
 
             else
                 if onl_ccc(OL)
-                    if ccs or ccl
+                    if ccl and not ccs // success long trade
+                        rem_ccc(OS)
+                        rem_ccc(CS)
+                        set_ccc(OL)
+                        rem_ccc(CL)
+
+                        cos := false
+                        ccs := false
+                        col := true
+                        ccl := true
+
+                        cct := true
+
+                        set_cdf("7")
+
+                    if ccl and ccs // failure long trade
                         if has_cpd(DS)
                             set_ccc(OS)
                             rem_ccc(CS)
@@ -434,7 +479,7 @@ new_cyc() =>
 
                             cct := true
 
-                            set_cdf("6")
+                            set_cdf("8")
 
                         else if has_cpd(DL)
                             rem_ccc(OS)
@@ -449,7 +494,7 @@ new_cyc() =>
 
                             cct := true
 
-                            set_cdf("7")
+                            set_cdf("9")
 
                 else
                     if onl_ccc(CL)
@@ -467,7 +512,7 @@ new_cyc() =>
 
                                 cct := true
 
-                                set_cdf("8")
+                                set_cdf("10")
 
                             else if has_cpd(DL)
                                 rem_ccc(OS)
@@ -482,7 +527,7 @@ new_cyc() =>
 
                                 cct := true
 
-                                set_cdf("9")
+                                set_cdf("11")
 
     if not cct
         cos := false
@@ -490,7 +535,7 @@ new_cyc() =>
         col := false
         ccl := false
 
-        set_cdf("10")
+        set_cdf("12")
 
     [cos, ccs, col, ccl]
 
@@ -582,6 +627,8 @@ if ffs or ffl
 // plotshape(has_cdf( "8"), text="DEBUG  8", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
 // plotshape(has_cdf( "9"), text="DEBUG  9", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
 // plotshape(has_cdf("10"), text="DEBUG 10", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(has_cdf("11"), text="DEBUG 11", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
+// plotshape(has_cdf("12"), text="DEBUG 12", location=location.belowbar, style=shape.labelup, size=size.small, color=color.purple, textcolor=color.white, transp=50)
 
 
 
