@@ -577,3 +577,14 @@ plotshape(ccs and     ffs, text=CS, location=location.belowbar, style=shape.xcro
 plotshape(col,             text=OL, location=location.abovebar, style=shape.triangledown, size=size.tiny, color=HG, textcolor=color.white, transp=30)
 plotshape(ccl and not ffl, text=CL, location=location.belowbar, style=shape.triangleup,   size=size.tiny, color=HG, textcolor=color.white, transp=30)
 plotshape(ccl and     ffl, text=CL, location=location.belowbar, style=shape.xcross,       size=size.tiny, color=HG, textcolor=color.white, transp=30)
+
+
+
+// -------------------------------------------------------------------------- //
+
+
+
+alertcondition(condition=cos, title=OS, message="Triggered Open Short Signal")
+alertcondition(condition=ccs, title=CS, message="Triggered Close Short Signal")
+alertcondition(condition=col, title=OL, message="Triggered Open Long Signal")
+alertcondition(condition=ccl, title=CL, message="Triggered Close Long Signal")
